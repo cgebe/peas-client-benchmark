@@ -20,7 +20,14 @@ public class PEASResponse extends PEASObject {
 		response.append(" ");
 		response.append(header.getStatus());
 		response.append(System.lineSeparator());
-		response.append(body.getBody());
+		response.append("Protocol: ");
+		response.append(header.getProtocol());
+		response.append(System.lineSeparator());
+		response.append("Content-Length: ");
+		response.append(header.getBodyLength());
+		response.append(System.lineSeparator());
+		response.append(System.lineSeparator());
+		response.append(body.getBody().toString());
 		response.append(System.lineSeparator());
 		
 		return response.toString();
@@ -32,7 +39,9 @@ public class PEASResponse extends PEASObject {
 		
 		map.put("command", header.getCommand());
 		map.put("status", header.getStatus());
-		map.put("body", body.getBody());
+		map.put("bodylength", String.valueOf(header.getBodyLength()));
+		map.put("protocol", header.getProtocol());
+		map.put("body", body.getBody().toString());
 
 		return JSONValue.toJSONString(map);
 	}
@@ -49,7 +58,7 @@ public class PEASResponse extends PEASObject {
 		return body;
 	}
 	
-	public void setHeader(PEASBody body) {
+	public void setBody(PEASBody body) {
 		this.body = body;
 	}
 

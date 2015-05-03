@@ -3,10 +3,13 @@ package client;
 import java.util.HashMap;
 import java.util.Map;
 
+import protocol.PEASBody;
 import protocol.PEASException;
+import protocol.PEASHeader;
 import protocol.PEASParser;
 import protocol.PEASRequest;
 import util.Message;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -43,17 +46,35 @@ public class ClientHandler extends SimpleChannelInboundHandler<Message> {
         //ChannelFuture f = ctx.writeAndFlush(Unpooled.copiedBuffer("Netty MAY rock!", CharsetUtil.UTF_8));
         */
     	Map<String, String> map = new HashMap<String, String>();
-    	/*
+    	
+    	byte[] sample = hexStringToByteArray("e04f");
+    	
         map.put("command", "QUERY");
         map.put("issuer", "127.0.0.1:11777");
-        map.put("protocol", "http");
+        map.put("protocol", "HTTP");
+        map.put("bodylength", String.valueOf(sample.length));
         map.put("query", "Planet Erde");
-        map.put("body", "request");
-        */
+        
+        /*
         map.put("command", "KEY");
         map.put("issuer", "127.0.0.1:11777");
+        */
         
-		PEASRequest req = (PEASRequest) PEASParser.parse(map);
+		String s = "QUERY 127.0.0.1:11777" + System.getProperty("line.separator")
+				  + "Query: TESTQUERY" + System.getProperty("line.separator")
+				  + "Protocol: HTTP" + System.getProperty("line.separator")
+				  + "Content-Length: " + String.valueOf(sample.length);
+		
+		PEASHeader header = (PEASHeader) PEASParser.parseHeader(s);
+		
+		System.out.println(header.toString());
+		
+		
+		
+		PEASBody body = new PEASBody(sample.length);
+		body.getBody().writeBytes(sample);
+		
+		PEASRequest req = new PEASRequest(header, body);
 
         ChannelFuture f = ctx.writeAndFlush(req);
         
@@ -116,5 +137,13 @@ public class ClientHandler extends SimpleChannelInboundHandler<Message> {
         ctx.close();
     }
 
-
+    public static byte[] hexStringToByteArray(String s) {
+        int len = s.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(s.charAt(i), 16) << 4)
+                                 + Character.digit(s.charAt(i+1), 16));
+        }
+        return data;
+    }
 }

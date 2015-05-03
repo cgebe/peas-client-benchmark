@@ -14,31 +14,12 @@ public class PEASRequest extends PEASObject {
 
 	@Override
 	public String toString() {
-		StringBuilder response = new StringBuilder();
+		StringBuilder request = new StringBuilder();
 		
-		response.append(header.getCommand());
-		response.append(" ");
-		response.append(header.getIssuer());
+		request.append(header.toString());
+		request.append(body.toString());
 		
-		if (header.getQuery() != null) {
-			response.append(System.lineSeparator());
-			response.append(header.getQuery());
-		} 
-		
-		if (header.getProtocol() != null) {
-			response.append(System.lineSeparator());
-			response.append(header.getProtocol());
-			response.append(" ");
-			response.append(header.getBodyLength());
-		} 
-		
-		if (body.getBody() != null) {
-			response.append(System.lineSeparator());
-			response.append(body.getBody());
-		}
-		response.append(System.lineSeparator());
-		
-		return response.toString();
+		return request.toString();
 	}
 	
 	@Override
@@ -57,7 +38,7 @@ public class PEASRequest extends PEASObject {
 		}
 		
 		if (body.getBody() != null && header.getBodyLength() > 0) {
-			map.put("body", body.getBody());
+			map.put("body", body.getBody().toString());
 			map.put("bodylength", String.valueOf(header.getBodyLength()));
 		}
 		
@@ -76,9 +57,10 @@ public class PEASRequest extends PEASObject {
 		return body;
 	}
 	
-	public void setHeader(PEASBody body) {
+	public void setBody(PEASBody body) {
 		this.body = body;
 	}
+
 
 
 }

@@ -5,7 +5,11 @@ import java.util.List;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-import util.Message;
+import protocol.PEASBody;
+import protocol.PEASHeader;
+import protocol.PEASObject;
+import protocol.PEASRequest;
+import protocol.PEASResponse;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 
@@ -16,15 +20,37 @@ public class JSONDecoder extends MessageToMessageDecoder<String> {
 	@Override
 	protected void decode(ChannelHandlerContext ctx, String json, List<Object> out) throws Exception {
 		JSONObject obj = (JSONObject) parser.parse(json);
-		Message msg = new Message();
-		msg.setCommand((String) obj.get("command"));
-		msg.setQueryId((String) obj.get("id"));
-		msg.setQuery((String) obj.get("query"));
-		msg.setProtocol((String) obj.get("protocol"));
-		msg.setRequest((String) obj.get("request"));
-		msg.setSymmetricKey((String) obj.get("skey"));
-		msg.setAsymmetricKey((String) obj.get("akey"));
-		out.add(msg);
+		out.add(PEASObjectFromJSONObject(obj));
 	}
 
+	private PEASObject PEASObjectFromJSONObject(JSONObject obj) {
+		String c = (String) obj.get("command");
+		if (c.equals("KEY")) {
+			PEASHeader header = new PEASHeader();
+			header.setCommand(c);
+			header.setIssuer((String) obj.get("issuer"));
+			
+			return new PEASRequest(header, new PEASBody(0));
+		} else if (c.equals("QUERY")) {
+			PEASHeader header = new PEASHeader();
+			header.setCommand(c);
+			header.setIssuer((String) obj.get("issuer"));
+			header.setProtocol((String) obj.get("protocol"));
+			header.setBodyLength((int) obj.get("bodylength"));
+			header.setQuery((String) obj.get("query"));
+
+			return new PEASRequest(header, new PEASBody(0));
+		} else if (c.equals("RESPONSE")) {
+			PEASHeader header = new PEASHeader();
+			header.setCommand(c);
+			header.setStatus((String) obj.get("status"));
+			header.setProtocol((String) obj.get("protocol"));
+			header.setBodyLength((int) obj.get("bodylength"));
+			
+			
+			return new PEASResponse(header, new PEASBody(0));
+		} else {
+			return new PEASResponse(new PEASHeader(), new PEASBody(0));
+		}
+	}
 }

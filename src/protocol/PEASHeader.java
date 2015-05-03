@@ -1,5 +1,10 @@
 package protocol;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import org.json.simple.JSONValue;
+
 public class PEASHeader {
 	
 	private String command;
@@ -7,6 +12,7 @@ public class PEASHeader {
 	private String issuer;
 	private String protocol;
 	private String status;
+	private int bodyLength;
 	
 	public PEASHeader() {
 		command = null;
@@ -15,6 +21,70 @@ public class PEASHeader {
 		protocol = null;
 		status = null;
 	}
+	
+	public String toString() {
+		StringBuilder request = new StringBuilder();
+		
+		request.append(this.getCommand());
+		request.append(" ");
+		request.append(this.getIssuer());
+		
+		if (this.getStatus() != null) {
+			request.append(System.lineSeparator());
+			request.append("Status: ");
+			request.append(this.getStatus());
+		} 
+		
+		if (this.getProtocol() != null) {
+			request.append(System.lineSeparator());
+			request.append("Protocol: ");
+			request.append(this.getProtocol());
+		} 
+		
+		if (this.getBodyLength() > 0) {
+			request.append(System.lineSeparator());
+			request.append("Content-Length: ");
+			request.append(this.getBodyLength());
+		} 
+		
+		if (this.getQuery() != null) {
+			request.append(System.lineSeparator());
+			request.append("Query: ");
+			request.append(this.getQuery());
+		} 
+		request.append(System.lineSeparator());
+		request.append(System.lineSeparator());
+		
+		return request.toString();
+	}
+	
+
+	public String toJSONString() {
+		Map<String, String> map = new HashMap<String, String>();
+		
+		map.put("command", this.getCommand());
+		map.put("issuer", this.getIssuer());
+		
+		if (this.getStatus() != null) {
+			map.put("status", this.getStatus());
+		} 
+		
+		if (this.getProtocol() != null) {
+			map.put("protocol", this.getProtocol());
+		} 
+		
+		if (this.getQuery() != null) {
+			map.put("query", this.getQuery());
+		}
+		
+		if (this.getBodyLength() > 0) {
+			map.put("bodylength", String.valueOf(this.getBodyLength()));
+		}
+		
+		return JSONValue.toJSONString(map);
+	}
+	
+	
 
 	public String getCommand() {
 		return command;
@@ -54,6 +124,14 @@ public class PEASHeader {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public int getBodyLength() {
+		return bodyLength;
+	}
+
+	public void setBodyLength(int bodyLength) {
+		this.bodyLength = bodyLength;
 	}
 
 }

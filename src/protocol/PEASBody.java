@@ -1,18 +1,21 @@
 package protocol;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 public class PEASBody {
 	
-	private String body;
+	private ByteBuf body;
 	
-	public PEASBody() {
-		setBody(null);
+	public PEASBody(int length) {
+		body = Unpooled.buffer(length);
 	}
 
-	public String getBody() {
+	public ByteBuf getBody() {
 		return body;
 	}
 
-	public void setBody(String body) {
+	public void setBody(ByteBuf body) {
 		this.body = body;
 	}
 
