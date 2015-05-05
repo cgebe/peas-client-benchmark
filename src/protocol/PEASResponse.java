@@ -16,19 +16,8 @@ public class PEASResponse extends PEASObject {
 	public String toString() {
 		StringBuilder response = new StringBuilder();
 		
-		response.append(header.getCommand());
-		response.append(" ");
-		response.append(header.getStatus());
-		response.append(System.lineSeparator());
-		response.append("Protocol: ");
-		response.append(header.getProtocol());
-		response.append(System.lineSeparator());
-		response.append("Content-Length: ");
-		response.append(header.getBodyLength());
-		response.append(System.lineSeparator());
-		response.append(System.lineSeparator());
+		response.append(header.toString());
 		response.append(body.getBody().toString());
-		response.append(System.lineSeparator());
 		
 		return response.toString();
 	}

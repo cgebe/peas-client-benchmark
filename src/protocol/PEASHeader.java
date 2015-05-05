@@ -109,6 +109,14 @@ public class PEASHeader {
 	public void setIssuer(String issuer) {
 		this.issuer = issuer;
 	}
+	
+	public String getIssuerAddress() {
+		return issuer.split(":")[0];
+	}
+	
+	public int getIssuerPort() {
+		return Integer.parseInt(issuer.split(":")[1]);
+	}
 
 	public String getProtocol() {
 		return protocol;

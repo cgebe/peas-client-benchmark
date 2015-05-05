@@ -17,7 +17,7 @@ public class PEASRequest extends PEASObject {
 		StringBuilder request = new StringBuilder();
 		
 		request.append(header.toString());
-		request.append(body.toString());
+		request.append(body.getBody().toString());
 		
 		return request.toString();
 	}

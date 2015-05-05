@@ -1,11 +1,13 @@
 package codec;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import protocol.PEASBody;
 import protocol.PEASHeader;
@@ -26,6 +28,8 @@ public class PEASDecoder extends MessageToMessageDecoder<ByteBuf> {
 	private PEASHeader header;
 	private PEASBody body;
 	
+	private Pattern p;
+	
 	public PEASDecoder() {
         this(Charset.defaultCharset());
     }
@@ -38,29 +42,30 @@ public class PEASDecoder extends MessageToMessageDecoder<ByteBuf> {
         this.writeBody = false;
         this.firstLine = true;
         this.header = new PEASHeader();
+        this.p = Pattern.compile("\\s+");
     }
 	
 	@Override
 	protected void decode(ChannelHandlerContext ctx, ByteBuf msg, List<Object> out) throws Exception {
 		if (!writeBody) {
 			if (firstLine) {
-				String firstLine = msg.toString(charset);
-				String[] values = firstLine.split("\\s+");
+				String line = msg.toString(charset);
+				String[] values = p.split(line);
 				
 				header.setCommand(values[0]);
 				header.setIssuer(values[1]);
 				
+				firstLine = false;
 			} else {
 				String headerField = msg.toString(charset);
 				
 				// reading header is finished
 				if (headerField.equals("")) {
 					writeBody = true;
-					
 					body = new PEASBody(header.getBodyLength());
 				}
 				
-				String[] values = headerField.split("\\s+");
+				String[] values = p.split(headerField);
 				
 				if (values[0].equals("Status:")) {
 					header.setStatus(values[1]);
@@ -79,7 +84,7 @@ public class PEASDecoder extends MessageToMessageDecoder<ByteBuf> {
 				}
 			}
 		} else {
-			if (writeIndex >= header.getBodyLength()) {
+			if (header.getBodyLength() <= 0) {
 				if (header.getCommand().equals("KEY") || header.getCommand().equals("QUERY")) {
 					out.add(new PEASRequest(header, body));
 				} else {
@@ -89,10 +94,19 @@ public class PEASDecoder extends MessageToMessageDecoder<ByteBuf> {
 				writeBody = false;
 				this.header = new PEASHeader();
 			} else {
-				System.out.println(writeIndex);
 				writeIndex += msg.capacity();
-				System.out.println(body.getBody().writerIndex());
 				body.getBody().writeBytes(msg);
+				
+				if (writeIndex + 1 >= header.getBodyLength()) {
+					if (header.getCommand().equals("QUERY")) {
+						out.add(new PEASRequest(header, body));
+					} else {
+						out.add(new PEASResponse(header, body));
+					}
+					writeIndex = 0;
+					writeBody = false;
+					this.header = new PEASHeader();
+				}
 			}
 		}
 		//out.add(PEASParser.parse(json));

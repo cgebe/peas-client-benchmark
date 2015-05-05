@@ -19,21 +19,21 @@ public class PEASParser {
 		if (obj instanceof String) {
 			String s = (String) obj;
 			Pattern p1 = Pattern.compile(System.getProperty("line.separator"));
+			Pattern p2 = Pattern.compile("\\s+");
+			
 			String[] lines = p1.split(s);
-
 			// command line
 			PEASHeader header = new PEASHeader();
 			
 			for (int i = 0; i < lines.length; i++) {
 				if (i <= 0) {
-					Pattern p2 = Pattern.compile("\\s+");
 					String[] commands = p2.split(lines[i]);
 					
 					header.setCommand(commands[0]);
 					header.setIssuer(commands[1]);
 
 				} else {
-					String[] values = lines[i].split("\\s+");
+					String[] values = p2.split(lines[i]);
 					
 					if (values[0].equals("Status:")) {
 						header.setStatus(values[1]);

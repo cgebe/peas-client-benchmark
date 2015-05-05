@@ -6,6 +6,7 @@ import java.util.Map;
 import protocol.PEASBody;
 import protocol.PEASException;
 import protocol.PEASHeader;
+import protocol.PEASObject;
 import protocol.PEASParser;
 import protocol.PEASRequest;
 import util.Message;
@@ -22,7 +23,7 @@ import io.netty.util.CharsetUtil;
  * traffic between the echo client and server by sending the first message to
  * the server.
  */
-public class ClientHandler extends SimpleChannelInboundHandler<Message> {
+public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
 
 
     public ClientHandler() {
@@ -59,18 +60,20 @@ public class ClientHandler extends SimpleChannelInboundHandler<Message> {
         map.put("command", "KEY");
         map.put("issuer", "127.0.0.1:11777");
         */
-        
+        /*
 		String s = "QUERY 127.0.0.1:11779" + System.getProperty("line.separator")
 				  + "Query: TESTQUERY" + System.getProperty("line.separator")
 				  + "Protocol: HTTP" + System.getProperty("line.separator")
 				  + "Content-Length: " + String.valueOf(sample.length);
-		
+		*/
+		String s = "KEY 127.0.0.1:11779";
+        
 		PEASHeader header = (PEASHeader) PEASParser.parseHeader(s);
 		
-		PEASBody body = new PEASBody(sample.length);
-		body.getBody().writeBytes(sample);
+		//PEASBody body = new PEASBody(sample.length);
+		//body.getBody().writeBytes(sample);
 		
-		PEASRequest req = new PEASRequest(header, body);
+		PEASRequest req = new PEASRequest(header, new PEASBody(0));
 
         ChannelFuture f = ctx.writeAndFlush(req);
         
@@ -121,9 +124,9 @@ public class ClientHandler extends SimpleChannelInboundHandler<Message> {
     }
     
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, Message msg) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, PEASObject obj) throws Exception {
 		// TODO Auto-generated method stub
-		
+		//System.out.println(obj.toString());
 	}
 
     @Override
