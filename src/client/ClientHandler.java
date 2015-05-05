@@ -50,7 +50,7 @@ public class ClientHandler extends SimpleChannelInboundHandler<Message> {
     	byte[] sample = hexStringToByteArray("e04f");
     	
         map.put("command", "QUERY");
-        map.put("issuer", "127.0.0.1:11777");
+        map.put("issuer", "127.0.0.1:11779");
         map.put("protocol", "HTTP");
         map.put("bodylength", String.valueOf(sample.length));
         map.put("query", "Planet Erde");
@@ -60,16 +60,12 @@ public class ClientHandler extends SimpleChannelInboundHandler<Message> {
         map.put("issuer", "127.0.0.1:11777");
         */
         
-		String s = "QUERY 127.0.0.1:11777" + System.getProperty("line.separator")
+		String s = "QUERY 127.0.0.1:11779" + System.getProperty("line.separator")
 				  + "Query: TESTQUERY" + System.getProperty("line.separator")
 				  + "Protocol: HTTP" + System.getProperty("line.separator")
 				  + "Content-Length: " + String.valueOf(sample.length);
 		
 		PEASHeader header = (PEASHeader) PEASParser.parseHeader(s);
-		
-		System.out.println(header.toString());
-		
-		
 		
 		PEASBody body = new PEASBody(sample.length);
 		body.getBody().writeBytes(sample);

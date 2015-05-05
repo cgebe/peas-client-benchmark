@@ -45,7 +45,11 @@ public class PEASEncoder extends MessageToByteEncoder<PEASObject>{
     
 	@Override
 	protected void encode(ChannelHandlerContext ctx, PEASObject obj, ByteBuf out) throws Exception {
+		// write header to downstream
 		out.writeBytes(ByteBufUtil.encodeString(ctx.alloc(), CharBuffer.wrap(obj.getHeader().toString()), charset));
+		// write body to downstream
 		out.writeBytes(obj.getBody().getBody());
+		// append line separator at the end of the body for framing
+		out.writeBytes(ByteBufUtil.encodeString(ctx.alloc(), CharBuffer.wrap(System.lineSeparator()), charset));
 	}
 }
