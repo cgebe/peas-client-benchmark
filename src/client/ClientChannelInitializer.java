@@ -13,6 +13,7 @@ import io.netty.handler.logging.LoggingHandler;
 import codec.JSONDecoder;
 import codec.JSONEncoder;
 import codec.PEASDecoder;
+import codec.PEASDecoder3;
 import codec.PEASEncoder;
 
 public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -23,13 +24,7 @@ public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> 
 	protected void initChannel(SocketChannel ch) throws Exception {
 		pipeline = ch.pipeline();
 		pipeline.addLast(new LoggingHandler(LogLevel.INFO));
-		pipeline.addLast("framedecoder", new DelimiterBasedFrameDecoder(8192, Delimiters.lineDelimiter()));
-		//pipeline.addLast("framedecoder", new LineBasedFrameDecoder(80));
-        //pipeline.addLast("stringdecoder", new StringDecoder());
-        //pipeline.addLast("stringencoder", new StringEncoder());
-        //pipeline.addLast("jsondecoder", new JSONDecoder());
-        //pipeline.addLast("jsonencoder", new JSONEncoder());
-        pipeline.addLast("peasdecoder", new PEASDecoder());
+        pipeline.addLast("peasdecoder", new PEASDecoder3());
         pipeline.addLast("peasencoder", new PEASEncoder());
         pipeline.addLast("peasprinter", new PEASPrinter());
         pipeline.addLast("processor", new ClientHandler());
