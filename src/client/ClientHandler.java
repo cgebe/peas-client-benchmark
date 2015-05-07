@@ -1,7 +1,9 @@
 package client;
 
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 import protocol.PEASBody;
 import protocol.PEASException;
@@ -12,12 +14,14 @@ import protocol.PEASRequest;
 import util.Message;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.CharsetUtil;
 
+import org.apache.commons.codec.binary.Base64;
 /**
  * Handler implementation for the echo client.  It initiates the ping-pong
  * traffic between the echo client and server by sending the first message to
@@ -25,13 +29,13 @@ import io.netty.util.CharsetUtil;
  */
 public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
 
-
-    public ClientHandler() {
-        
-    }
-
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws PEASException {
+    public void channelActive(ChannelHandlerContext ctx) throws PEASException, InterruptedException {
+    	Thread reader = new Reader(ctx);
+    	reader.run();
+    	// send to privacy proxy
+        
+        
     	/*
         Message msg = new Message();
         msg.setQueryId("100");
@@ -46,6 +50,8 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
         System.out.println("sent");
         //ChannelFuture f = ctx.writeAndFlush(Unpooled.copiedBuffer("Netty MAY rock!", CharsetUtil.UTF_8));
         */
+    	/*
+    	
     	Map<String, String> map = new HashMap<String, String>();
     	
     	byte[] sample = hexStringToByteArray("e04f");
@@ -59,21 +65,22 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
         /*
         map.put("command", "KEY");
         map.put("issuer", "127.0.0.1:11777");
-        */
-        /*
+        
+        
 		String s = "QUERY 127.0.0.1:11779" + System.getProperty("line.separator")
 				  + "Query: TESTQUERY" + System.getProperty("line.separator")
 				  + "Protocol: HTTP" + System.getProperty("line.separator")
 				  + "Content-Length: " + String.valueOf(sample.length);
-		*/
-		String s = "KEY 127.0.0.1:11779";
+		
+		//String s = "KEY 127.0.0.1:11779";
         
-		PEASHeader header = (PEASHeader) PEASParser.parseHeader(s);
+		//PEASHeader header = (PEASHeader) PEASParser.parseHeader(s);
 		
 		//PEASBody body = new PEASBody(sample.length);
 		//body.getBody().writeBytes(sample);
 		
-		PEASRequest req = new PEASRequest(header, new PEASBody(0));
+		//PEASRequest req = new PEASRequest(header, new PEASBody(0));
+        
 
         ChannelFuture f = ctx.writeAndFlush(req);
         
@@ -91,8 +98,7 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
                 }
             }
         });
-        
-        /*
+
         Map<String, String> map = new HashMap<String, String>();
         map.put("command", "QUERY");
         map.put("issuer", "127.0.0.1:11777");
@@ -144,5 +150,75 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
                                  + Character.digit(s.charAt(i+1), 16));
         }
         return data;
+    }
+    
+    
+    class Reader extends Thread {
+    	
+    	private ChannelHandlerContext ctx;
+    	
+    	public Reader(ChannelHandlerContext ctx) {
+    		this.ctx = ctx;
+    	}
+
+        @Override
+        public void run() {
+            final Scanner in = new Scanner(System.in);
+            while (in.hasNext()) {
+            	String line = in.nextLine();
+            	if (line.startsWith("bing")) {
+            		String[] splitted = line.split("\\s+");
+            		String query = splitted[1];
+            		
+            		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
+            				 + "Host: www.bing.com";
+            		
+            		PEASHeader header = new PEASHeader();
+            		
+            		byte[] content = c.getBytes(Charset.defaultCharset());
+            		
+            		header.setCommand("QUERY");
+            		header.setIssuer("127.0.0.1:11779");
+            		header.setProtocol("HTTP");
+            		header.setBodyLength(content.length);
+            		header.setQuery(query);
+            		
+            		PEASBody body = new PEASBody(content.length);
+            		body.getBody().writeBytes(content);
+            		
+            		PEASRequest req = new PEASRequest(header, body);
+            		
+            		System.out.println(req.toString());
+            		System.out.println(c);
+            		
+            		ChannelFuture f2 = ctx.writeAndFlush(new PEASRequest(header, body));
+            		
+            		f2.addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture future) {
+                        	//future.channel().close();
+                            if (future.isSuccess()) {
+                            	//future.channel().writeAndFlush(msg);
+                            	System.out.println("sending successful");
+                                // ctx.channel().read();
+                            } else {
+                                //future.channel().close();
+                                System.out.println("sending failed");
+                                future.channel().close();
+                            }
+                        }
+                    });
+            		
+            	}
+            	
+            	
+            	if (line.startsWith("close")) {
+            		// Wait until the connection is closed.
+            		
+            	}
+            	
+            }
+        }
+
     }
 }
