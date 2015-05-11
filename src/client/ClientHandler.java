@@ -1,9 +1,25 @@
 package client;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.Security;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.KeyGenerator;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 import protocol.PEASBody;
 import protocol.PEASException;
@@ -11,6 +27,7 @@ import protocol.PEASHeader;
 import protocol.PEASObject;
 import protocol.PEASParser;
 import protocol.PEASRequest;
+import util.Encryption;
 import util.Message;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -21,6 +38,14 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.CharsetUtil;
 
+import com.squareup.crypto.rsa.NativeRSAEngine;
+
+import org.bouncycastle.crypto.AsymmetricBlockCipher;
+import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.crypto.encodings.PKCS1Encoding;
+import org.bouncycastle.crypto.engines.RSAEngine;
+import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
+import org.bouncycastle.crypto.util.PublicKeyFactory;
 import org.apache.commons.codec.binary.Base64;
 /**
  * Handler implementation for the echo client.  It initiates the ping-pong
@@ -29,16 +54,59 @@ import org.apache.commons.codec.binary.Base64;
  */
 public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
 
+	private boolean keyReceived = false;
+    
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws PEASException, InterruptedException {
-    	Thread reader = new Reader(ctx);
-    	reader.run();
+    public void channelActive(ChannelHandlerContext ctx) throws PEASException, InterruptedException, NoSuchAlgorithmException, NoSuchPaddingException, IOException {
+        // Initialization vector building
+
+    	// Cipher Initialisation
+        //AEScipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        
+        //byte[] keyBytes = Files.readAllBytes(Paths.get(".").resolve("pubKey2.der"));
+		//AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(keyBytes);
+		//setRSAEncryptionKey(publicKey);
+		
+        //Thread reader = new Reader(ctx);
+    	//reader.run();
+        
+        /*
+        PEASHeader header = new PEASHeader();
+        header.setCommand("KEY");
+        header.setIssuer("127.0.0.1:11779");
+        
+        PEASRequest req = new PEASRequest(header, new PEASBody(0));
+        
+        ChannelFuture f2 = ctx.writeAndFlush(req);
+		
+		f2.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) {
+                if (future.isSuccess()) {
+                	System.out.println("sending successful");
+                } else {
+                    System.out.println("sending failed");
+                    future.channel().close();
+                }
+            }
+        });
+        */
+    	
     }
     
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, PEASObject obj) throws Exception {
-		// TODO Auto-generated method stub
-		//System.out.println(obj.toString());
+		// suppose first message we send was key request
+		
+		if (!keyReceived) {
+	        //RSA cipher initialization
+			//AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(obj.getBody().getBody().array());
+			//setRSAEncryptionKey(publicKey);
+			
+		} else {
+			System.out.println("response to query received");
+		}
+		
 	}
 
     @Override
@@ -48,69 +116,7 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
         ctx.close();
     }
 
-    class Reader extends Thread {
-    	
-    	private ChannelHandlerContext ctx;
-    	
-    	public Reader(ChannelHandlerContext ctx) {
-    		this.ctx = ctx;
-    	}
-
-        @Override
-        public void run() {
-            final Scanner in = new Scanner(System.in);
-            while (in.hasNext()) {
-            	String line = in.nextLine();
-            	if (line.startsWith("bing")) {
-            		String[] splitted = line.split("\\s+");
-            		String query = splitted[1];
-            		
-            		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
-            				 + "Host: www.bing.com";
-            		
-            		PEASHeader header = new PEASHeader();
-            		
-            		byte[] content = c.getBytes(Charset.defaultCharset());
-            		
-            		header.setCommand("QUERY");
-            		header.setIssuer("127.0.0.1:11779");
-            		header.setProtocol("HTTP");
-            		header.setBodyLength(content.length);
-            		header.setQuery(query);
-            		
-            		PEASBody body = new PEASBody(content.length);
-            		body.getBody().writeBytes(content);
-            		
-            		PEASRequest req = new PEASRequest(header, body);
-            		
-            		System.out.println(req.toString());
-            		System.out.println(c);
-            		
-            		ChannelFuture f2 = ctx.writeAndFlush(new PEASRequest(header, body));
-            		
-            		f2.addListener(new ChannelFutureListener() {
-                        @Override
-                        public void operationComplete(ChannelFuture future) {
-                            if (future.isSuccess()) {
-                            	System.out.println("sending successful");
-                            } else {
-                                System.out.println("sending failed");
-                                future.channel().close();
-                            }
-                        }
-                    });
-            		
-            	}
-            	
-            	
-            	if (line.startsWith("close")) {
-            		// Wait until the connection is closed.
-            		
-            	}
-            	
-            }
-            in.close();
-        }
-
-    }
+    
+    
+    
 }

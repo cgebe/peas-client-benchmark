@@ -26,7 +26,7 @@ public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> 
 		pipeline.addLast(new LoggingHandler(LogLevel.INFO));
         pipeline.addLast("peasdecoder", new PEASDecoder3());
         pipeline.addLast("peasencoder", new PEASEncoder());
-        pipeline.addLast("peasprinter", new PEASPrinter());
+        //pipeline.addLast("peasprinter", new PEASPrinter());
         pipeline.addLast("processor", new ClientHandler());
 	}
 
