@@ -9,11 +9,15 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 import java.io.BufferedReader;
+import java.io.DataInputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -24,6 +28,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -59,8 +64,6 @@ import client.ClientChannelInitializer;
 public final class OnionClient {
 	
 	List<OnionNode> nodes;
-	
-	private Channel channel;
 
     //static final boolean SSL = System.getProperty("ssl") != null;
 	private IvParameterSpec iv;
@@ -112,10 +115,22 @@ public final class OnionClient {
         this.nodes = new ArrayList<OnionNode>();
         this.currentWorkingNode = 0;
         
+        // same key for all nodes
+        PublicKey key = readPublicKey(Paths.get(".").resolve("pubKey2.der"));
+        
         for (int i = 0; i < adresses.size(); i++) {
+        	// create node object for managing
         	OnionNode node = new OnionNode();
+        	
+        	// set hostname and port
         	node.setHostname(adresses.get(i).get("hostname"));
         	node.setPort(Integer.parseInt(adresses.get(i).get("port")));
+        	
+    		
+        	// rsa cipher init
+            node.setRSAcipher(Cipher.getInstance("RSA/ECB/PKCS1Padding"));
+            node.getRSAcipher().init(Cipher.ENCRYPT_MODE, key);
+            
         	nodes.add(node);
         }
         
@@ -148,10 +163,6 @@ public final class OnionClient {
         		}
         	}
         	
-        	if ("bye".equals(line.toLowerCase())) {
-                channel.closeFuture().sync();
-                break;
-            }
         }
 
     }
@@ -161,26 +172,26 @@ public final class OnionClient {
         try {
             Bootstrap b = new Bootstrap();
             b.group(group)
-             .channel(NioSocketChannel.class);
+             .channel(NioSocketChannel.class)
+             .handler(new HandshakeChannelInitializer(this));
              //.option(ChannelOption.TCP_NODELAY, true)
+            
+            // Start the client.
+            Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
              
             for (int i = 0; i < nodes.size(); i++) {
             	// for response
-            	b.handler(new HandshakeChannelInitializer(nodes.get(i)));
-            	// Start the client.
-                Channel ch = b.connect(nodes.get(i).getHostname(), nodes.get(i).getPort()).sync().channel();
-            
 	            PEASHeader header = new PEASHeader();
 	    		
 	    		header.setCommand("HANDSHAKE");
-	    		header.setIssuer(nodes.get(i).getHostname() + ":" + nodes.get(i).getPort());
+	    		header.setIssuer(nodes.get(0).getHostname() + ":" + nodes.get(0).getPort());
+	    		header.setForward(createForwarderChain(i));
 	    		
 	    		byte[] content = createHandshakeContent();
 	    		header.setBodyLength(content.length);
-	    		PEASBody body = new PEASBody(content.length);
-	    		body.getBody().writeBytes(content);
-	    		
-	    		ChannelFuture f = channel.writeAndFlush(new PEASRequest(header, body));
+	    		PEASBody body = new PEASBody(content);
+
+	    		ChannelFuture f = ch.writeAndFlush(new PEASRequest(header, body));
 	    		
 	    		f.addListener(new ChannelFutureListener() {
 	               @Override
@@ -188,7 +199,7 @@ public final class OnionClient {
 	                   if (future.isSuccess()) {
 	                   	   System.out.println("handshake successful");
 	                   } else {
-	                       System.out.println("sending failed");
+	                       System.out.println("handshake failed");
 	                       future.channel().close();
 	                   }
 	               }
@@ -200,11 +211,7 @@ public final class OnionClient {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
         }
-        
-        for (int i = 0; i < nodes.size(); i++) {
-        	computeKeyAgreement(nodes.get(i).getPayload());
-        	currentWorkingNode++;
-        }
+
 	}
     
     
@@ -220,21 +227,20 @@ public final class OnionClient {
              
 
         	// for response
-        	b.handler(new HandshakeChannelInitializer(nodes.get(nodes.size() - 1)));
+        	b.handler(new HandshakeChannelInitializer(this));
         	// Start the client.
-            Channel ch = b.connect(nodes.get(nodes.size() - 1).getHostname(), nodes.get(nodes.size() - 1).getPort()).sync().channel();
+            Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
         
             PEASHeader header = new PEASHeader();
     		
     		header.setCommand("HANDSHAKE");
-    		header.setIssuer(nodes.get(nodes.size() - 1).getHostname() + ":" + nodes.get(nodes.size() - 1).getPort());
+    		header.setIssuer(nodes.get(0).getHostname() + ":" + nodes.get(0).getPort());
     		
     		byte[] content = createHandshakeContent();
     		header.setBodyLength(content.length);
-    		PEASBody body = new PEASBody(content.length);
-    		body.getBody().writeBytes(content);
+    		PEASBody body = new PEASBody(content);
     		
-    		ChannelFuture f = channel.writeAndFlush(new PEASRequest(header, body));
+    		ChannelFuture f = ch.writeAndFlush(new PEASRequest(header, body));
     		
     		f.addListener(new ChannelFutureListener() {
                @Override
@@ -269,7 +275,7 @@ public final class OnionClient {
              
 
         	// for response
-        	b.handler(new HandshakeChannelInitializer(nodes.get(nodes.size() - 1)));
+        	b.handler(new QueryChannelInitializer());
         	// Start the client.
             Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
         
@@ -285,13 +291,13 @@ public final class OnionClient {
     		byte[] queryEnc = encryptContent(query);
     		byte[] contentEnc = encryptContent(c);
     		
+    		header.setForward(createForwarderChain(nodes.size() - 1));
     		header.setQuery(Base64.encodeBase64String(queryEnc));
     		
     		header.setBodyLength(contentEnc.length);
-    		PEASBody body = new PEASBody(contentEnc.length);
-    		body.getBody().writeBytes(contentEnc);
+    		PEASBody body = new PEASBody(contentEnc);
     		
-    		ChannelFuture f = channel.writeAndFlush(new PEASRequest(header, body));
+    		ChannelFuture f = ch.writeAndFlush(new PEASRequest(header, body));
     		
     		f.addListener(new ChannelFutureListener() {
                @Override
@@ -314,7 +320,25 @@ public final class OnionClient {
 
     }
     
-    
+
+	private String createForwarderChain(int node) throws IllegalBlockSizeException, BadPaddingException {
+		StringBuilder chain = new StringBuilder();
+		for (int i = node; i > 0; i--) {
+			StringBuilder address = new StringBuilder();
+			address.append(nodes.get(i).getHostname());
+			address.append(":");
+			address.append(nodes.get(i).getPort());
+			address.append("_");
+			
+			// add address at the beginning of the chain
+			chain.insert(0, address.toString());
+			
+			// encrypt whole chain with key
+			chain = new StringBuilder(Base64.encodeBase64String(nodes.get(i - 1).getAEScipher().doFinal(chain.toString().getBytes())));
+		}
+		return chain.toString();
+	}
+
 	private byte[] encryptContent(String c) throws IllegalBlockSizeException, BadPaddingException {
 		byte[] bytes = c.getBytes();
 		
@@ -400,12 +424,12 @@ public final class OnionClient {
     }
 	
 
-    private void computeKeyAgreement(byte[] cipherBytes) throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, IllegalStateException, InvalidAlgorithmParameterException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException {
+    public void computeKeyAgreement(byte[] cipherBytes) throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, IllegalStateException, InvalidAlgorithmParameterException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException {
         byte[] bytes = cipherBytes;
         KeyFactory KeyFac = KeyFactory.getInstance("DH");
         // Decipher the answer
         for (int i = 0; i < currentWorkingNode; i++) {
-            bytes = nodes.get(currentWorkingNode).getAESdecipher().doFinal(bytes);
+            bytes = nodes.get(i).getAESdecipher().doFinal(bytes);
         }
         DHPublicKeySpec dhPublicKeySpec = new DHPublicKeySpec(new BigInteger(bytes), Modulus, Base);
         PublicKey ORPubKey = KeyFac.generatePublic(dhPublicKeySpec);
@@ -417,10 +441,32 @@ public final class OnionClient {
         nodes.get(currentWorkingNode).getAEScipher().init(Cipher.ENCRYPT_MODE, symmetricKey, iv);
         nodes.get(currentWorkingNode).setAESdecipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
         nodes.get(currentWorkingNode).getAESdecipher().init(Cipher.DECRYPT_MODE, symmetricKey, iv);
+        
+        currentWorkingNode++;
     }
     
    
+    /**
+     * Read a RSA public key from a given file.
+     *
+     * @param pathOfKey Path to the file containing the key to read
+     * @return A public key
+     * @throws IOException
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeySpecException
+     */
+    private PublicKey readPublicKey(Path path) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+        File file = path.toFile();
+        FileInputStream fis = new FileInputStream(file);
+        byte[] keyBytes;
+        try (DataInputStream dis = new DataInputStream(fis)) {
+            keyBytes = new byte[(int) file.length()];
+            dis.readFully(keyBytes);
+        }
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
 
+        return KeyFactory.getInstance("RSA").generatePublic(spec);
+    }
 
 
 }
