@@ -176,10 +176,12 @@ public final class OnionClient {
              .handler(new HandshakeChannelInitializer(this));
              //.option(ChannelOption.TCP_NODELAY, true)
             
-            // Start the client.
-            Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
+           
              
             for (int i = 0; i < nodes.size(); i++) {
+            	 // Start the client.
+                Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
+                
             	// for response
 	            PEASHeader header = new PEASHeader();
 	    		
@@ -204,7 +206,7 @@ public final class OnionClient {
 	                   }
 	               }
 	            });
-	    		
+
 	    		ch.closeFuture().sync();
             }
         } finally {
@@ -321,7 +323,7 @@ public final class OnionClient {
     }
     
 
-	private String createForwarderChain(int node) throws IllegalBlockSizeException, BadPaddingException {
+	public String createForwarderChain(int node) throws IllegalBlockSizeException, BadPaddingException {
 		StringBuilder chain = new StringBuilder();
 		for (int i = node; i > 0; i--) {
 			StringBuilder address = new StringBuilder();
@@ -349,7 +351,7 @@ public final class OnionClient {
 		return bytes;
 	}
 
-	private byte[] createHandshakeContent() throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
+	public byte[] createHandshakeContent() throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
 		nodes.get(currentWorkingNode).setKeyPair(KeyPairGen.generateKeyPair());
 		nodes.get(currentWorkingNode).setKeyAgreement(KeyAgreement.getInstance("DH"));
 		nodes.get(currentWorkingNode).getKeyAgreement().init(nodes.get(currentWorkingNode).getKeyPair().getPrivate());
@@ -445,7 +447,22 @@ public final class OnionClient {
         currentWorkingNode++;
     }
     
-   
+    public int getCurrentWorkingNode() {
+    	return currentWorkingNode;
+    }
+    
+    public void setCurrentWorkingNode(int node) {
+    	currentWorkingNode = node;
+    }
+    
+    public List<OnionNode> getNodes() {
+    	return nodes;
+    }
+    
+    public void getNodes(List<OnionNode> nodes) {
+    	this.nodes = nodes;
+    }
+    
     /**
      * Read a RSA public key from a given file.
      *
