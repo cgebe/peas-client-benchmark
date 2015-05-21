@@ -176,39 +176,11 @@ public final class OnionClient {
              .handler(new HandshakeChannelInitializer(this));
              //.option(ChannelOption.TCP_NODELAY, true)
             
-           
-             
-            for (int i = 0; i < nodes.size(); i++) {
-            	 // Start the client.
-                Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
-                
-            	// for response
-	            PEASHeader header = new PEASHeader();
-	    		
-	    		header.setCommand("HANDSHAKE");
-	    		header.setIssuer(nodes.get(0).getHostname() + ":" + nodes.get(0).getPort());
-	    		header.setForward(createForwarderChain(i));
-	    		
-	    		byte[] content = createHandshakeContent();
-	    		header.setBodyLength(content.length);
-	    		PEASBody body = new PEASBody(content);
+        	 // Start the client.
+            Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
 
-	    		ChannelFuture f = ch.writeAndFlush(new PEASRequest(header, body));
-	    		
-	    		f.addListener(new ChannelFutureListener() {
-	               @Override
-	               public void operationComplete(ChannelFuture future) {
-	                   if (future.isSuccess()) {
-	                   	   System.out.println("handshake successful");
-	                   } else {
-	                       System.out.println("handshake failed");
-	                       future.channel().close();
-	                   }
-	               }
-	            });
-
-	    		ch.closeFuture().sync();
-            }
+    		ch.closeFuture().sync();
+            
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
@@ -238,7 +210,7 @@ public final class OnionClient {
     		header.setCommand("HANDSHAKE");
     		header.setIssuer(nodes.get(0).getHostname() + ":" + nodes.get(0).getPort());
     		
-    		byte[] content = createHandshakeContent();
+    		byte[] content = createHandshakeContent(currentWorkingNode);
     		header.setBodyLength(content.length);
     		PEASBody body = new PEASBody(content);
     		
@@ -262,7 +234,7 @@ public final class OnionClient {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
         }
-        computeKeyAgreement(nodes.get(nodes.size() - 1).getPayload());
+        computeKeyAgreement(currentWorkingNode, nodes.get(nodes.size() - 1).getPayload());
         currentWorkingNode++;
     }
     
@@ -330,7 +302,11 @@ public final class OnionClient {
 			address.append(nodes.get(i).getHostname());
 			address.append(":");
 			address.append(nodes.get(i).getPort());
-			address.append("_");
+			
+			// if last node then dont add _ because forward is not there
+			if (i != node) {
+				address.append("_");
+			}
 			
 			// add address at the beginning of the chain
 			chain.insert(0, address.toString());
@@ -338,7 +314,12 @@ public final class OnionClient {
 			// encrypt whole chain with key
 			chain = new StringBuilder(Base64.encodeBase64String(nodes.get(i - 1).getAEScipher().doFinal(chain.toString().getBytes())));
 		}
-		return chain.toString();
+
+		if (chain.toString().equals("")) {
+			return null;
+		} else {
+			return chain.toString();
+		}
 	}
 
 	private byte[] encryptContent(String c) throws IllegalBlockSizeException, BadPaddingException {
@@ -351,17 +332,17 @@ public final class OnionClient {
 		return bytes;
 	}
 
-	public byte[] createHandshakeContent() throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
-		nodes.get(currentWorkingNode).setKeyPair(KeyPairGen.generateKeyPair());
-		nodes.get(currentWorkingNode).setKeyAgreement(KeyAgreement.getInstance("DH"));
-		nodes.get(currentWorkingNode).getKeyAgreement().init(nodes.get(currentWorkingNode).getKeyPair().getPrivate());
+	public byte[] createHandshakeContent(int node) throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
+		nodes.get(node).setKeyPair(KeyPairGen.generateKeyPair());
+		nodes.get(node).setKeyAgreement(KeyAgreement.getInstance("DH"));
+		nodes.get(node).getKeyAgreement().init(nodes.get(node).getKeyPair().getPrivate());
 
         //pubKey = Kpair[numberOfRelay].getPublic().getEncoded();
-        byte[] pubKey = ((DHPublicKey) nodes.get(currentWorkingNode).getKeyPair().getPublic()).getY().toByteArray();
+        byte[] pubKey = ((DHPublicKey) nodes.get(node).getKeyPair().getPublic()).getY().toByteArray();
 
-        byte[] cipherRequestBytes = RSAencrypt(pubKey, currentWorkingNode);
-        for (int i = 0; i < currentWorkingNode; i++) {
-            cipherRequestBytes = nodes.get(currentWorkingNode).getAEScipher().doFinal(cipherRequestBytes);
+        byte[] cipherRequestBytes = RSAencrypt(pubKey, node);
+        for (int i = node; i > 0; i--) {
+            cipherRequestBytes = nodes.get(i - 1).getAEScipher().doFinal(cipherRequestBytes);
         }
 
         return cipherRequestBytes;
@@ -370,7 +351,6 @@ public final class OnionClient {
 	
 	private byte[] RSAencrypt(byte[] bytes, int node) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, IOException {
         byte[] encryptedBytes;
-
         if (bytes.length < 118) {
         	// if pubkey fits into 117 bytes that can be encrypted by rsa
             encryptedBytes = nodes.get(currentWorkingNode).getRSAcipher().doFinal(bytes);
@@ -426,25 +406,20 @@ public final class OnionClient {
     }
 	
 
-    public void computeKeyAgreement(byte[] cipherBytes) throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, IllegalStateException, InvalidAlgorithmParameterException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException {
-        byte[] bytes = cipherBytes;
+    public void computeKeyAgreement(int node, byte[] bytes) throws NoSuchAlgorithmException, InvalidKeySpecException, InvalidKeyException, IllegalStateException, InvalidAlgorithmParameterException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException {
         KeyFactory KeyFac = KeyFactory.getInstance("DH");
-        // Decipher the answer
-        for (int i = 0; i < currentWorkingNode; i++) {
-            bytes = nodes.get(i).getAESdecipher().doFinal(bytes);
-        }
+
         DHPublicKeySpec dhPublicKeySpec = new DHPublicKeySpec(new BigInteger(bytes), Modulus, Base);
         PublicKey ORPubKey = KeyFac.generatePublic(dhPublicKeySpec);
-        nodes.get(currentWorkingNode).getKeyAgreement().doPhase(ORPubKey, true);
+        nodes.get(node).getKeyAgreement().doPhase(ORPubKey, true);
 
-        final byte[] sharedSecret = nodes.get(currentWorkingNode).getKeyAgreement().generateSecret();
+        final byte[] sharedSecret = nodes.get(node).getKeyAgreement().generateSecret();
         SecretKey symmetricKey = new SecretKeySpec(sharedSecret, 0, 16, "AES");
-        nodes.get(currentWorkingNode).setAEScipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
-        nodes.get(currentWorkingNode).getAEScipher().init(Cipher.ENCRYPT_MODE, symmetricKey, iv);
-        nodes.get(currentWorkingNode).setAESdecipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
-        nodes.get(currentWorkingNode).getAESdecipher().init(Cipher.DECRYPT_MODE, symmetricKey, iv);
-        
-        currentWorkingNode++;
+        System.out.println("sk " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
+        nodes.get(node).setAEScipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
+        nodes.get(node).getAEScipher().init(Cipher.ENCRYPT_MODE, symmetricKey, iv);
+        nodes.get(node).setAESdecipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
+        nodes.get(node).getAESdecipher().init(Cipher.DECRYPT_MODE, symmetricKey, iv);
     }
     
     public int getCurrentWorkingNode() {

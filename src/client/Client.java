@@ -113,7 +113,7 @@ public final class Client {
 					}
             		
             		byte[] encrypted = Encryption.AESencrypt(content, currentKey, iv);
-            		System.out.println(encrypted.length);
+
             		header.setBodyLength(encrypted.length);
             		PEASBody body = new PEASBody(encrypted.length);
             		body.getBody().writeBytes(encrypted);
