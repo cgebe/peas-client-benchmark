@@ -65,7 +65,7 @@ public final class Client {
         byte[] ivBytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         iv = new IvParameterSpec(ivBytes);
         
-        byte[] keyBytes = Files.readAllBytes(Paths.get(".").resolve("pubKey2.der"));
+        byte[] keyBytes = Files.readAllBytes(Paths.get("./resources/").resolve("pubKey2.der"));
 		AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(keyBytes);
 		setRSAEncryptionKey(publicKey);
         

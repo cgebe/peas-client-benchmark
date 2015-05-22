@@ -21,6 +21,7 @@ public class Config {
  
 		if (inputStream != null) {
 			try {
+				properties = new Properties();
 				properties.load(inputStream);
 			} catch (IOException e) {
 				logger.info("property file '" + FILE + "' is not following .properties file syntax");

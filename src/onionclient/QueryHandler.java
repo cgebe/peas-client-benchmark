@@ -1,4 +1,4 @@
-package onionclient.query;
+package onionclient;
 
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
@@ -11,7 +11,6 @@ import javax.crypto.NoSuchPaddingException;
 
 import org.apache.commons.codec.binary.Base64;
 
-import onionclient.OnionClient;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;

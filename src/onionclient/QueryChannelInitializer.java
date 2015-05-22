@@ -1,7 +1,6 @@
-package onionclient.query;
+package onionclient;
 
 
-import onionclient.OnionClient;
 import protocol.PEASRequest;
 import receiver.handler.upstream.PEASPrinter;
 import codec.PEASDecoder3;

@@ -49,9 +49,6 @@ import javax.crypto.spec.DHPublicKeySpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-import onionclient.query.QueryChannelInitializer;
-import onionclient.query.QueryChannelInitializer;
-
 import org.apache.commons.codec.binary.Base64;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
