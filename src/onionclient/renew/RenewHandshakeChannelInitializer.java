@@ -1,4 +1,4 @@
-package onionclient;
+package onionclient.renew;
 
 public class RenewHandshakeChannelInitializer {
 

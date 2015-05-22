@@ -1,6 +1,8 @@
-package onionclient;
+package onionclient.query;
 
 
+import onionclient.OnionClient;
+import protocol.PEASRequest;
 import receiver.handler.upstream.PEASPrinter;
 import codec.PEASDecoder3;
 import codec.PEASEncoder;
@@ -8,13 +10,15 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
 
-public class HandshakeChannelInitializer extends ChannelInitializer<SocketChannel> {
+public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
 	
 	private ChannelPipeline pipeline;
 	private OnionClient client;
+	private PEASRequest query;
 	
-	public HandshakeChannelInitializer(OnionClient client) {
+	public QueryChannelInitializer(OnionClient client, PEASRequest req) {
 		this.client = client;
+		this.query = req;
 	}
 
 	@Override
@@ -24,7 +28,7 @@ public class HandshakeChannelInitializer extends ChannelInitializer<SocketChanne
         pipeline.addLast("peasdecoder", new PEASDecoder3()); // upstream 1
         pipeline.addLast("peasencoder", new PEASEncoder()); // downstream 1
         pipeline.addLast("peasprinter", new PEASPrinter()); // upstream 2
-        pipeline.addLast("handshakehandler", new HandshakeHandler(client)); // upstream 3
+        pipeline.addLast("handshakehandler", new QueryHandler(client, query)); // upstream 3
 	}
 
 }

@@ -1,6 +1,8 @@
 package onionclient;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -46,6 +48,9 @@ import javax.crypto.spec.DHParameterSpec;
 import javax.crypto.spec.DHPublicKeySpec;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+
+import onionclient.query.QueryChannelInitializer;
+import onionclient.query.QueryChannelInitializer;
 
 import org.apache.commons.codec.binary.Base64;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
@@ -149,142 +154,45 @@ public final class OnionClient {
             if (line == null) {
                 break;
             }
-            if (line.startsWith("handshake")) {
-            	if (!keysExchanged) {
-            		doHandshake();
-            		keysExchanged = true;
-            	} else {
-            		renewExitNodeKey();
-            	}
-            }
+
         	if (line.startsWith("query")) {
-        		if (keysExchanged) {
-        			doQuery();
-        		}
+        		
+    			PEASHeader header = new PEASHeader();
+        		
+        		header.setCommand("QUERY");
+        		header.setIssuer("ONION");
+        		
+        		String query = "erde";
+        		
+        		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
+                				 + "Host: www.bing.com";
+        		
+        		header.setQuery(query);
+        		header.setContentLength(c.getBytes().length);
+        		PEASBody body = new PEASBody(c.getBytes());
+        		
+    			doQuery(new PEASRequest(header, body));
+        		
         	}
         	
         }
 
     }
 
-    private void doHandshake() throws InterruptedException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException, InvalidKeySpecException, IllegalStateException {
+    private void doQuery(PEASRequest req) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
+
     	EventLoopGroup group = new NioEventLoopGroup();
         try {
+        	
             Bootstrap b = new Bootstrap();
             b.group(group)
              .channel(NioSocketChannel.class)
-             .handler(new HandshakeChannelInitializer(this));
-             //.option(ChannelOption.TCP_NODELAY, true)
-            
-        	 // Start the client.
-            Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
+             .handler(new QueryChannelInitializer(this, req));
+            //.option(ChannelOption.TCP_NODELAY, true)
 
-    		ch.closeFuture().sync();
-            
-        } finally {
-            // Shut down the event loop to terminate all threads.
-            group.shutdownGracefully();
-        }
-
-	}
-    
-    
-    private void renewExitNodeKey() throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
-    	currentWorkingNode--;
-    	
-    	EventLoopGroup group = new NioEventLoopGroup();
-        try {
-            Bootstrap b = new Bootstrap();
-            b.group(group)
-             .channel(NioSocketChannel.class);
-             //.option(ChannelOption.TCP_NODELAY, true)
-             
-
-        	// for response
-        	b.handler(new HandshakeChannelInitializer(this));
         	// Start the client.
             Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
-        
-            PEASHeader header = new PEASHeader();
-    		
-    		header.setCommand("HANDSHAKE");
-    		header.setIssuer(nodes.get(0).getHostname() + ":" + nodes.get(0).getPort());
-    		
-    		byte[] content = createHandshakeContent(currentWorkingNode);
-    		header.setBodyLength(content.length);
-    		PEASBody body = new PEASBody(content);
-    		
-    		ChannelFuture f = ch.writeAndFlush(new PEASRequest(header, body));
-    		
-    		f.addListener(new ChannelFutureListener() {
-               @Override
-               public void operationComplete(ChannelFuture future) {
-                   if (future.isSuccess()) {
-                   	   System.out.println("handshake successful");
-                   } else {
-                       System.out.println("sending failed");
-                       future.channel().close();
-                   }
-               }
-            });
-    		
-    		ch.closeFuture().sync();
-            
-        } finally {
-            // Shut down the event loop to terminate all threads.
-            group.shutdownGracefully();
-        }
-        computeKeyAgreement(currentWorkingNode, nodes.get(nodes.size() - 1).getPayload());
-        currentWorkingNode++;
-    }
-    
-    private void doQuery() throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
 
-    	EventLoopGroup group = new NioEventLoopGroup();
-        try {
-            Bootstrap b = new Bootstrap();
-            b.group(group)
-             .channel(NioSocketChannel.class);
-             //.option(ChannelOption.TCP_NODELAY, true)
-             
-
-        	// for response
-        	b.handler(new QueryChannelInitializer());
-        	// Start the client.
-            Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
-        
-            PEASHeader header = new PEASHeader();
-    		
-    		header.setCommand("QUERY");
-    		
-    		String query = "erde";
-    		
-    		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
-            				 + "Host: www.bing.com";
-    		
-    		byte[] queryEnc = encryptContent(query);
-    		byte[] contentEnc = encryptContent(c);
-    		
-    		header.setForward(createForwarderChain(nodes.size() - 1));
-    		header.setQuery(Base64.encodeBase64String(queryEnc));
-    		
-    		header.setBodyLength(contentEnc.length);
-    		PEASBody body = new PEASBody(contentEnc);
-    		
-    		ChannelFuture f = ch.writeAndFlush(new PEASRequest(header, body));
-    		
-    		f.addListener(new ChannelFutureListener() {
-               @Override
-               public void operationComplete(ChannelFuture future) {
-                   if (future.isSuccess()) {
-                   	   System.out.println("handshake successful");
-                   } else {
-                       System.out.println("sending failed");
-                       future.channel().close();
-                   }
-               }
-            });
-    		
     		ch.closeFuture().sync();
             
         } finally {
@@ -320,16 +228,6 @@ public final class OnionClient {
 		} else {
 			return chain.toString();
 		}
-	}
-
-	private byte[] encryptContent(String c) throws IllegalBlockSizeException, BadPaddingException {
-		byte[] bytes = c.getBytes();
-		
-		for (int i = nodes.size() - 1; i > 0; i--) {
-			bytes = nodes.get(i).getAEScipher().doFinal(bytes);
-		}
-		
-		return bytes;
 	}
 
 	public byte[] createHandshakeContent(int node) throws IllegalBlockSizeException, BadPaddingException, InvalidKeyException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, IOException {
@@ -459,6 +357,22 @@ public final class OnionClient {
 
         return KeyFactory.getInstance("RSA").generatePublic(spec);
     }
+
+	public ByteBuf encryptByteBuf(ByteBuf buffer) throws IllegalBlockSizeException, BadPaddingException {
+		byte[] bytes = buffer.array();
+		for (int i = nodes.size(); i > 0; i--) {
+            bytes = nodes.get(i - 1).getAEScipher().doFinal(bytes);
+        }
+		return Unpooled.wrappedBuffer(bytes);
+	}
+	
+	public ByteBuf decryptByteBuf(ByteBuf buffer) throws IllegalBlockSizeException, BadPaddingException {
+		byte[] bytes = buffer.array();
+		for (int i = 0; i < nodes.size() - 1; i++) {
+            bytes = nodes.get(i).getAESdecipher().doFinal(bytes);
+        }
+		return Unpooled.wrappedBuffer(bytes);
+	}
 
 
 }
