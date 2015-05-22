@@ -127,7 +127,7 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASObject> {
 					
 	        		query.getHeader().setForward(client.createForwarderChain(client.getNodes().size() - 1));
 	        		query.getHeader().setQuery(Base64.encodeBase64String(client.encryptByteBuf(Unpooled.wrappedBuffer(query.getHeader().getQuery().getBytes())).array()));
-					query.getBody().setContent(client.encryptByteBuf(query.getBody().getContent()));
+	        		query.getBody().setContent(client.encryptByteBuf(query.getBody().getContent()));
 					query.getHeader().setContentLength(query.getBody().getContent().capacity());
 					
 					ChannelFuture f = ctx.writeAndFlush(query);

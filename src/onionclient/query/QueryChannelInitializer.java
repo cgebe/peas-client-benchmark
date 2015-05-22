@@ -9,6 +9,8 @@ import codec.PEASEncoder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 
 public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
 	
@@ -25,10 +27,11 @@ public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
 	protected void initChannel(SocketChannel ch) throws Exception {
 		pipeline = ch.pipeline();
 		//pipeline.addLast("framer", new FixedLengthFrameDecoder(1));
+		pipeline.addLast(new LoggingHandler(LogLevel.INFO));
         pipeline.addLast("peasdecoder", new PEASDecoder3()); // upstream 1
         pipeline.addLast("peasencoder", new PEASEncoder()); // downstream 1
         pipeline.addLast("peasprinter", new PEASPrinter()); // upstream 2
-        pipeline.addLast("handshakehandler", new QueryHandler(client, query)); // upstream 3
+        pipeline.addLast("queryhandler", new QueryHandler(client, query)); // upstream 3
 	}
 
 }

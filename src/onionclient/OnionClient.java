@@ -156,18 +156,18 @@ public final class OnionClient {
             }
 
         	if (line.startsWith("query")) {
-        		
     			PEASHeader header = new PEASHeader();
         		
         		header.setCommand("QUERY");
         		header.setIssuer("ONION");
         		
         		String query = "erde";
+        		header.setQuery(query);
         		
         		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
                 				 + "Host: www.bing.com";
         		
-        		header.setQuery(query);
+        		
         		header.setContentLength(c.getBytes().length);
         		PEASBody body = new PEASBody(c.getBytes());
         		
