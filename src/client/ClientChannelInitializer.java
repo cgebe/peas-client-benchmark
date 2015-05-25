@@ -1,5 +1,9 @@
 package client;
 
+import benchmark.Measurement;
+import onionclient.OnionClient;
+import protocol.PEASMessage;
+import util.Config;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -19,15 +23,26 @@ import codec.PEASEncoder;
 public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> {
 	
 	private ChannelPipeline pipeline;
+	private Client client;
+	private Measurement m;
+	
+	public ClientChannelInitializer(Client client, Measurement m) {
+		this.client = client;
+		this.m = m;
+	}
 
 	@Override
 	protected void initChannel(SocketChannel ch) throws Exception {
 		pipeline = ch.pipeline();
-		pipeline.addLast(new LoggingHandler(LogLevel.INFO));
+		
+		// Logging on?
+		if (Config.getInstance().getValue("LOGGING").equals("on")) {
+			pipeline.addLast(new LoggingHandler(LogLevel.INFO));
+		}
         pipeline.addLast("peasdecoder", new PEASDecoder3());
         pipeline.addLast("peasencoder", new PEASEncoder());
         //pipeline.addLast("peasprinter", new PEASPrinter());
-        pipeline.addLast("processor", new ClientHandler());
+        pipeline.addLast("processor", new ClientHandler(client, m));
 	}
 
 }

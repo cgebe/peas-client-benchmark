@@ -4,35 +4,29 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
-import java.io.BufferedReader;
+
+
+
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
-import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
-import java.security.Security;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,7 +34,6 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.KeyAgreement;
-import javax.crypto.KeyGenerator;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKey;
 import javax.crypto.interfaces.DHPublicKey;
@@ -50,18 +43,12 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
-import org.bouncycastle.crypto.AsymmetricBlockCipher;
-import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.bouncycastle.crypto.encodings.PKCS1Encoding;
-import org.bouncycastle.crypto.engines.RSAEngine;
-import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
-import org.bouncycastle.crypto.util.PublicKeyFactory;
 
+import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;
-import protocol.PEASRequest;
+import protocol.PEASMessage;
 import util.Encryption;
-import client.ClientChannelInitializer;
 
 public final class OnionClient {
 	
@@ -71,10 +58,9 @@ public final class OnionClient {
 	private IvParameterSpec iv;
 	
     private final KeyPairGenerator KeyPairGen;
+    private PublicKey publicKey;
     
 	private int currentWorkingNode;
-
-	private boolean keysExchanged = false;
     
     private static final byte ModulusBytes[] = {
         (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
@@ -113,28 +99,10 @@ public final class OnionClient {
     private static final BigInteger Base = BigInteger.valueOf(2);
    
  
-    public OnionClient(List<Map<String, String>> adresses) throws InterruptedException, IOException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeySpecException, IllegalStateException {
-        this.nodes = new ArrayList<OnionNode>();
-        this.currentWorkingNode = 0;
-        
-        // same key for all nodes
-        PublicKey key = readPublicKey(Paths.get(".").resolve("pubKey2.der"));
-        
-        for (int i = 0; i < adresses.size(); i++) {
-        	// create node object for managing
-        	OnionNode node = new OnionNode();
-        	
-        	// set hostname and port
-        	node.setHostname(adresses.get(i).get("hostname"));
-        	node.setPort(Integer.parseInt(adresses.get(i).get("port")));
-        	
-    		
-        	// rsa cipher init
-            node.setRSAcipher(Cipher.getInstance("RSA/ECB/PKCS1Padding"));
-            node.getRSAcipher().init(Cipher.ENCRYPT_MODE, key);
-            
-        	nodes.add(node);
-        }
+    public OnionClient() throws InterruptedException, IOException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeySpecException, IllegalStateException {
+
+        // same key for all clients
+    	publicKey = readPublicKey(Paths.get(".").resolve("pubKey2.der"));
         
         byte[] ivBytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         iv = new IvParameterSpec(ivBytes);
@@ -143,49 +111,54 @@ public final class OnionClient {
         DHParameterSpec dhParamSpec = new DHParameterSpec(Modulus, Base);
         KeyPairGen = KeyPairGenerator.getInstance("DH");
         KeyPairGen.initialize(dhParamSpec);
-
-
-        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-        for (;;) {
-            String line = in.readLine();
-            if (line == null) {
-                break;
-            }
-
-        	if (line.startsWith("query")) {
-    			PEASHeader header = new PEASHeader();
-        		
-        		header.setCommand("QUERY");
-        		header.setIssuer("ONION");
-        		
-        		String query = "erde";
-        		header.setQuery(query);
-        		
-        		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
-                				 + "Host: www.bing.com";
-        		
-        		
-        		header.setContentLength(c.getBytes().length);
-        		PEASBody body = new PEASBody(c.getBytes());
-        		
-    			doQuery(new PEASRequest(header, body));
-        		
-        	}
-        	
-        }
-
     }
 
-    private void doQuery(PEASRequest req) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
-
+    public void doQuery(List<Map<String, String>> addresses, String query) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
+    	// Measure time 
+    	Measurement m = new Measurement();
+    	m.setBegin(System.nanoTime());
+    	
+    	this.nodes = new ArrayList<OnionNode>();
+        this.currentWorkingNode = 0;
+    	
+        for (int i = 0; i < addresses.size(); i++) {
+        	// create node object for managing
+        	OnionNode node = new OnionNode();
+        	
+        	// set hostname and port
+        	node.setHostname(addresses.get(i).get("hostname"));
+        	node.setPort(Integer.parseInt(addresses.get(i).get("port")));
+        	
+    		
+        	// rsa cipher init
+            node.setRSAcipher(Cipher.getInstance("RSA/ECB/PKCS1Padding"));
+            node.getRSAcipher().init(Cipher.ENCRYPT_MODE, publicKey);
+            
+        	nodes.add(node);
+        }
+    	
+    	
     	EventLoopGroup group = new NioEventLoopGroup();
         try {
+        	
+        	PEASHeader header = new PEASHeader();
+    		
+    		header.setCommand("QUERY");
+    		header.setIssuer("ONION");
+    		header.setQuery(query);
+    		
+    		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
+            		 + "Host: www.google.com";
+    		
+    		header.setContentLength(c.getBytes().length);
+    		PEASBody body = new PEASBody(c.getBytes());
+    		
+    		PEASMessage req = new PEASMessage(header, body);
         	
             Bootstrap b = new Bootstrap();
             b.group(group)
              .channel(NioSocketChannel.class)
-             .handler(new QueryChannelInitializer(this, req));
-            //.option(ChannelOption.TCP_NODELAY, true)
+             .handler(new QueryChannelInitializer(this, req, m));
 
         	// Start the client.
             Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
@@ -273,31 +246,6 @@ public final class OnionClient {
 
         }
         return encryptedBytes;
-    }
-
-	public static void main(String[] args) throws Exception {
-		List<Map<String, String>> servers = new ArrayList<Map<String, String>>();
-		
-		// 1
-		Map<String, String> firstServer = new HashMap<String, String>();
-		firstServer.put("hostname", "127.0.0.1");
-		firstServer.put("port", "12345");
-		
-		// 2
-		Map<String, String> secondServer = new HashMap<String, String>();
-		secondServer.put("hostname", "127.0.0.1");
-		secondServer.put("port", "12346");
-		
-		// 3
-		Map<String, String> thirdServer = new HashMap<String, String>();
-		thirdServer.put("hostname", "127.0.0.1");
-		thirdServer.put("port", "12347");
-		
-		servers.add(firstServer);
-		servers.add(secondServer);
-		servers.add(thirdServer);
-		
-        OnionClient c = new OnionClient(servers);
     }
 	
 

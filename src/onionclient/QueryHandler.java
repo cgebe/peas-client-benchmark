@@ -11,6 +11,7 @@ import javax.crypto.NoSuchPaddingException;
 
 import org.apache.commons.codec.binary.Base64;
 
+import benchmark.Measurement;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -19,20 +20,21 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import protocol.PEASBody;
 import protocol.PEASHeader;
-import protocol.PEASObject;
-import protocol.PEASRequest;
+import protocol.PEASMessage;
 import util.Encryption;
 
 
-public class QueryHandler extends SimpleChannelInboundHandler<PEASObject> {
+public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	
 	private OnionClient client;
-	private PEASRequest query;
+	private PEASMessage query;
 	private boolean querySent = false;
+	private Measurement m;
 
-	public QueryHandler(OnionClient client, PEASRequest req) {
+	public QueryHandler(OnionClient client, PEASMessage req, Measurement m) {
 		this.client = client;
 		this.query = req;
+		this.m = m;
 	}
 	
 	@Override
@@ -50,7 +52,7 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASObject> {
 			header.setContentLength(content.length);
 			PEASBody body = new PEASBody(content);
 	
-			ChannelFuture f = ctx.writeAndFlush(new PEASRequest(header, body));
+			ChannelFuture f = ctx.writeAndFlush(new PEASMessage(header, body));
 			
 			f.addListener(new ChannelFutureListener() {
 	           @Override
@@ -76,7 +78,7 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASObject> {
 	}
 
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, PEASObject obj) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, PEASMessage obj) throws Exception {
 		if (obj.getHeader().getCommand().equals("RESPONSE")) {
 			if (!querySent) {
 				byte[] cipherResponseBytes = obj.getBody().getContent().array();
@@ -107,7 +109,7 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASObject> {
 					header.setContentLength(content.length);
 					PEASBody body = new PEASBody(content);
 			
-					ChannelFuture f = ctx.writeAndFlush(new PEASRequest(header, body));
+					ChannelFuture f = ctx.writeAndFlush(new PEASMessage(header, body));
 					
 					f.addListener(new ChannelFutureListener() {
 			           @Override
@@ -147,8 +149,9 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASObject> {
 	
 				}
 			} else {
-				System.out.println("response to query received");
 				ctx.close();
+				m.setEnd(System.nanoTime());
+				System.out.println("query lasted: " + m.getTimeInMs());
 			}
 		} 
 			

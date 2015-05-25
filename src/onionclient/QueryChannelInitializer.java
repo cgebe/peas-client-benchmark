@@ -1,8 +1,10 @@
 package onionclient;
 
 
-import protocol.PEASRequest;
+import benchmark.Measurement;
+import protocol.PEASMessage;
 import receiver.handler.upstream.PEASPrinter;
+import util.Config;
 import codec.PEASDecoder3;
 import codec.PEASEncoder;
 import io.netty.channel.ChannelInitializer;
@@ -15,22 +17,27 @@ public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
 	
 	private ChannelPipeline pipeline;
 	private OnionClient client;
-	private PEASRequest query;
+	private PEASMessage query;
+	private Measurement m;
 	
-	public QueryChannelInitializer(OnionClient client, PEASRequest req) {
+	public QueryChannelInitializer(OnionClient client, PEASMessage req, Measurement m) {
 		this.client = client;
 		this.query = req;
+		this.m = m;
 	}
 
 	@Override
 	protected void initChannel(SocketChannel ch) throws Exception {
 		pipeline = ch.pipeline();
-		//pipeline.addLast("framer", new FixedLengthFrameDecoder(1));
-		pipeline.addLast(new LoggingHandler(LogLevel.INFO));
+		
+		// Logging on?
+		if (Config.getInstance().getValue("LOGGING").equals("on")) {
+			pipeline.addLast(new LoggingHandler(LogLevel.INFO));
+		}
         pipeline.addLast("peasdecoder", new PEASDecoder3()); // upstream 1
         pipeline.addLast("peasencoder", new PEASEncoder()); // downstream 1
         pipeline.addLast("peasprinter", new PEASPrinter()); // upstream 2
-        pipeline.addLast("queryhandler", new QueryHandler(client, query)); // upstream 3
+        pipeline.addLast("queryhandler", new QueryHandler(client, query, m)); // upstream 3
 	}
 
 }

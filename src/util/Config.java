@@ -11,13 +11,13 @@ import org.slf4j.LoggerFactory;
 public class Config {
 	
 	private static Config instance;
-	private static final String FILE = "config.properties";
+	private static final String FILE = "benchmark.properties";
 	private static final Logger logger = LoggerFactory.getLogger(Config.class);
 	private Properties properties;
 	
 	
 	private Config () {
-		InputStream inputStream = getClass().getClassLoader().getResourceAsStream(FILE);
+		InputStream inputStream = Config.class.getClassLoader().getResourceAsStream(FILE);
  
 		if (inputStream != null) {
 			try {

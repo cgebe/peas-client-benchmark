@@ -1,9 +1,7 @@
 package client;
 
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -11,9 +9,6 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Scanner;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -26,25 +21,19 @@ import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 
+import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;
-import protocol.PEASParser;
-import protocol.PEASRequest;
+import protocol.PEASMessage;
 import util.Encryption;
-import util.Message;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
 
 /**
  * Sends one message when a connection is open and echoes back any received
@@ -54,21 +43,26 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
  */
 public final class Client {
 	
-	private Channel channel;
     private SecretKey currentKey = null;
     //static final boolean SSL = System.getProperty("ssl") != null;
 	private IvParameterSpec iv;
     private AsymmetricBlockCipher RSAcipher;
+    private long measurePoint;
     
-    public Client(String connectTo, int port) throws InterruptedException, IOException {
-    	
+    public Client() throws InterruptedException, IOException {
         byte[] ivBytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         iv = new IvParameterSpec(ivBytes);
         
         byte[] keyBytes = Files.readAllBytes(Paths.get("./resources/").resolve("pubKey2.der"));
 		AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(keyBytes);
 		setRSAEncryptionKey(publicKey);
-        
+    }
+    
+    public void doQuery(String receiver, int receiverPort, String issuer, int issuerPort, String query) throws InterruptedException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidCipherTextException {
+    	// Measure time 
+    	Measurement m = new Measurement();
+    	m.setBegin(System.nanoTime());
+    	
     	// Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
         try {
@@ -76,93 +70,55 @@ public final class Client {
             b.group(group)
              .channel(NioSocketChannel.class)
              //.option(ChannelOption.TCP_NODELAY, true)
-             .handler(new ClientChannelInitializer());
+             .handler(new ClientChannelInitializer(this, m));
 
+    		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
+    				 + "Host: www.google.com";
+    		
+    		PEASHeader header = new PEASHeader();
+    		
+    		byte[] content = c.getBytes(Charset.defaultCharset());
+    		
+    		header.setCommand("QUERY");
+    		header.setIssuer(issuer + ":" + issuerPort);
+    		header.setProtocol("HTTP");
+    		
+			currentKey = Encryption.generateNewKey();
+			header.setQuery(createQueryField(currentKey, query));
+
+    		
+    		byte[] encrypted = Encryption.AESencrypt(content, currentKey, iv);
+
+    		header.setContentLength(encrypted.length);
+    		PEASBody body = new PEASBody(encrypted.length);
+    		body.getContent().writeBytes(encrypted);
+    		
             // Start the client.
-            channel = b.connect(connectTo, port).sync().channel();
-
-            ChannelFuture lastWriteFuture = null;
-            BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-            for (;;) {
-                String line = in.readLine();
-                if (line == null) {
-                    break;
-                }
-            	if (line.startsWith("bing")) {
-            		String[] splitted = line.split("\\s+");
-            		String query = splitted[1];
-            		
-            		
-            		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
-            				 + "Host: www.bing.com";
-            		
-            		PEASHeader header = new PEASHeader();
-            		
-            		byte[] content = c.getBytes(Charset.defaultCharset());
-            		
-            		header.setCommand("QUERY");
-            		header.setIssuer(connectTo + ":11779");
-            		header.setProtocol("HTTP");
-            		
-            		try {
-						currentKey = Encryption.generateNewKey();
-						header.setQuery(createQueryField(currentKey, query));
-					} catch (InvalidKeyException | NoSuchAlgorithmException | InvalidAlgorithmParameterException | InvalidCipherTextException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
-					}
-            		
-            		byte[] encrypted = Encryption.AESencrypt(content, currentKey, iv);
-
-            		header.setContentLength(encrypted.length);
-            		PEASBody body = new PEASBody(encrypted.length);
-            		body.getContent().writeBytes(encrypted);
-            		
-            		/*
-            		PEASHeader header = new PEASHeader();
-            		
-            		header.setCommand("KEY");
-            		header.setIssuer("127.0.0.1:11779");
-            		
-            		PEASBody body = new PEASBody(0);
-            		*/
-            		lastWriteFuture = channel.writeAndFlush(new PEASRequest(header, body));
-            		
-            		lastWriteFuture.addListener(new ChannelFutureListener() {
-                        @Override
-                        public void operationComplete(ChannelFuture future) {
-                            if (future.isSuccess()) {
-                            	System.out.println("sending successful");
-                            } else {
-                                System.out.println("sending failed");
-                                future.channel().close();
-                            }
-                        }
-                    });
-            		
-            	}
-            	
-            	
-            	if ("bye".equals(line.toLowerCase())) {
-                    channel.closeFuture().sync();
-                    break;
-                }
-            }
+            Channel ch = b.connect(receiver, receiverPort).sync().channel();
             
-            // only if line is null than sync last write
-            if (lastWriteFuture != null) {
-                lastWriteFuture.sync();
-            }
+    		ChannelFuture f = ch.writeAndFlush(new PEASMessage(header, body));
+    		
+    		f.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) {
+                    if (future.isSuccess()) {
+                    	System.out.println("sending successful");
+                    } else {
+                        System.out.println("sending failed");
+                        future.channel().close();
+                    }
+                }
+            });
+    		
+    		ch.closeFuture().sync();
 
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
         }
+    	
     }
 
-    public static void main(String[] args) throws Exception {
-        Client c = new Client("127.0.0.1", 11777);
-    }
     
     private String createQueryField(SecretKey symKey, String query) throws InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidCipherTextException {
     	byte[] keyBytes = symKey.getEncoded(); // 16 bytes length

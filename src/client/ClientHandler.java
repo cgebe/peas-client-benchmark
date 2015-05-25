@@ -24,11 +24,9 @@ import javax.crypto.spec.IvParameterSpec;
 import protocol.PEASBody;
 import protocol.PEASException;
 import protocol.PEASHeader;
-import protocol.PEASObject;
+import protocol.PEASMessage;
 import protocol.PEASParser;
-import protocol.PEASRequest;
 import util.Encryption;
-import util.Message;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -37,8 +35,11 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.util.CharsetUtil;
+import benchmark.Measurement;
 
 import com.squareup.crypto.rsa.NativeRSAEngine;
+
+import onionclient.OnionClient;
 
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -52,50 +53,19 @@ import org.apache.commons.codec.binary.Base64;
  * traffic between the echo client and server by sending the first message to
  * the server.
  */
-public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
+public class ClientHandler extends SimpleChannelInboundHandler<PEASMessage> {
 
 	private boolean keyReceived = false;
-    
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws PEASException, InterruptedException, NoSuchAlgorithmException, NoSuchPaddingException, IOException {
-        // Initialization vector building
+	private Client client;
+	private Measurement m;
+	
+	public ClientHandler(Client client, Measurement m) {
+		this.client = client;
+		this.m = m;
+	}
 
-    	// Cipher Initialisation
-        //AEScipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        
-        //byte[] keyBytes = Files.readAllBytes(Paths.get(".").resolve("pubKey2.der"));
-		//AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(keyBytes);
-		//setRSAEncryptionKey(publicKey);
-		
-        //Thread reader = new Reader(ctx);
-    	//reader.run();
-        
-        /*
-        PEASHeader header = new PEASHeader();
-        header.setCommand("KEY");
-        header.setIssuer("127.0.0.1:11779");
-        
-        PEASRequest req = new PEASRequest(header, new PEASBody(0));
-        
-        ChannelFuture f2 = ctx.writeAndFlush(req);
-		
-		f2.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) {
-                if (future.isSuccess()) {
-                	System.out.println("sending successful");
-                } else {
-                    System.out.println("sending failed");
-                    future.channel().close();
-                }
-            }
-        });
-        */
-    	
-    }
-    
 	@Override
-	protected void channelRead0(ChannelHandlerContext ctx, PEASObject obj) throws Exception {
+	protected void channelRead0(ChannelHandlerContext ctx, PEASMessage obj) throws Exception {
 		// suppose first message we send was key request
 		
 		if (!keyReceived) {
@@ -104,7 +74,9 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASObject> {
 			//setRSAEncryptionKey(publicKey);
 			
 		} else {
-			System.out.println("response to query received");
+			ctx.close();
+			m.setEnd(System.nanoTime());
+			System.out.println("query lasted: " + m.getTimeInMs());
 		}
 		
 	}
