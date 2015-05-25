@@ -102,7 +102,7 @@ public final class OnionClient {
     public OnionClient() throws InterruptedException, IOException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeySpecException, IllegalStateException {
 
         // same key for all clients
-    	publicKey = readPublicKey(Paths.get(".").resolve("pubKey2.der"));
+    	publicKey = readPublicKey(Paths.get("./resources/").resolve("pubKey2.der"));
         
         byte[] ivBytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         iv = new IvParameterSpec(ivBytes);
@@ -258,7 +258,7 @@ public final class OnionClient {
 
         final byte[] sharedSecret = nodes.get(node).getKeyAgreement().generateSecret();
         SecretKey symmetricKey = new SecretKeySpec(sharedSecret, 0, 16, "AES");
-        System.out.println("sk " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
+        //System.out.println("sk " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
         nodes.get(node).setAEScipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
         nodes.get(node).getAEScipher().init(Cipher.ENCRYPT_MODE, symmetricKey, iv);
         nodes.get(node).setAESdecipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));

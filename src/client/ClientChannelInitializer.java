@@ -17,7 +17,7 @@ import io.netty.handler.logging.LoggingHandler;
 import codec.JSONDecoder;
 import codec.JSONEncoder;
 import codec.PEASDecoder;
-import codec.PEASDecoder3;
+import codec.PEASDecoder;
 import codec.PEASEncoder;
 
 public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -39,9 +39,12 @@ public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> 
 		if (Config.getInstance().getValue("LOGGING").equals("on")) {
 			pipeline.addLast(new LoggingHandler(LogLevel.INFO));
 		}
-        pipeline.addLast("peasdecoder", new PEASDecoder3());
+        pipeline.addLast("peasdecoder", new PEASDecoder());
         pipeline.addLast("peasencoder", new PEASEncoder());
-        //pipeline.addLast("peasprinter", new PEASPrinter());
+        
+        if (Config.getInstance().getValue("LOGGING").equals("on")) {
+        	pipeline.addLast("peasprinter", new PEASPrinter());
+        }
         pipeline.addLast("processor", new ClientHandler(client, m));
 	}
 

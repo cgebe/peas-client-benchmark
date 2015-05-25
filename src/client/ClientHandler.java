@@ -67,16 +67,16 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, PEASMessage obj) throws Exception {
 		// suppose first message we send was key request
-		
+		ctx.close();
+		m.setEnd(System.nanoTime());
+		System.out.println("query lasted: " + m.getTimeInMs());
 		if (!keyReceived) {
 	        //RSA cipher initialization
 			//AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(obj.getBody().getBody().array());
 			//setRSAEncryptionKey(publicKey);
 			
 		} else {
-			ctx.close();
-			m.setEnd(System.nanoTime());
-			System.out.println("query lasted: " + m.getTimeInMs());
+			
 		}
 		
 	}
