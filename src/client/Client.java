@@ -1,7 +1,11 @@
 package client;
 
 
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -14,6 +18,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 import org.bouncycastle.crypto.AsymmetricBlockCipher;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.crypto.encodings.PKCS1Encoding;
@@ -25,14 +30,18 @@ import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;
 import protocol.PEASMessage;
+import util.Config;
 import util.Encryption;
+import util.Observer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.util.ResourceLeakDetector;
 
 
 /**
@@ -47,21 +56,35 @@ public final class Client {
     //static final boolean SSL = System.getProperty("ssl") != null;
 	private IvParameterSpec iv;
     private AsymmetricBlockCipher RSAcipher;
-    private long measurePoint;
+    private boolean isSending;
+	private Measurement queryTime;
     
-    public Client() throws InterruptedException, IOException {
+    public Client() throws InterruptedException, IOException, URISyntaxException {
+    	this.isSending = false;
+    	this.queryTime = new Measurement();
         byte[] ivBytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         iv = new IvParameterSpec(ivBytes);
         
-        byte[] keyBytes = Files.readAllBytes(Paths.get("./resources/").resolve("pubKey2.der"));
+        //byte[] keyBytes = Files.readAllBytes(Paths.get("./resources/").resolve("pubKey2.der"));
+        String jarPath = new File(Client.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
+        InputStream inputStream = new FileInputStream(new File(jarPath + "/resources/pubKey2.der"));
+        //new FileInputStream(new File("config/config.xml"));
+        //InputStream inputStream = Client.class.getClassLoader().getResourceAsStream("pubKey2.der");
+        byte[] keyBytes = IOUtils.toByteArray(inputStream);
+        
 		AsymmetricKeyParameter publicKey = PublicKeyFactory.createKey(keyBytes);
 		setRSAEncryptionKey(publicKey);
+		
+		ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED);
     }
     
     public void doQuery(String receiver, int receiverPort, String issuer, int issuerPort, String query) throws InterruptedException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidCipherTextException {
-    	// Measure time 
-    	Measurement m = new Measurement();
-    	m.setBegin(System.nanoTime());
+    	System.out.println("true");
+    	this.setSending(true);
+
+    	if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
+    		queryTime.setBegin(System.nanoTime());
+    	}
     	
     	// Configure the client.
         EventLoopGroup group = new NioEventLoopGroup();
@@ -70,7 +93,8 @@ public final class Client {
             b.group(group)
              .channel(NioSocketChannel.class)
              //.option(ChannelOption.TCP_NODELAY, true)
-             .handler(new ClientChannelInitializer(this, m));
+             .handler(new ClientChannelInitializer(this))
+             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS , 500);
 
     		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
     				 + "Host: www.google.com";
@@ -86,7 +110,6 @@ public final class Client {
 			currentKey = Encryption.generateNewKey();
 			header.setQuery(createQueryField(currentKey, query));
 
-    		
     		byte[] encrypted = Encryption.AESencrypt(content, currentKey, iv);
 
     		header.setContentLength(encrypted.length);
@@ -102,9 +125,13 @@ public final class Client {
                 @Override
                 public void operationComplete(ChannelFuture future) {
                     if (future.isSuccess()) {
-                    	System.out.println("sending successful");
+                    	if (Config.getInstance().getValue("LOGGING").equals("on")) {
+                    		System.out.println("sending successful");
+                    	}
                     } else {
-                        System.out.println("sending failed");
+                    	if (Config.getInstance().getValue("LOGGING").equals("on")) {
+                    		System.out.println("sending failed");
+                    	}
                         future.channel().close();
                     }
                 }
@@ -181,6 +208,21 @@ public final class Client {
       	byte[] encrypted = RSAcipher.processBlock(input, 0, input.length);
       	return encrypted;
 	}
-	
+
+	public boolean isSending() {
+		return isSending;
+	}
+
+	public void setSending(boolean isSending) {
+		this.isSending = isSending;
+	}
+
+	public Measurement getQueryTime() {
+		return queryTime;
+	}
+
+	public void setQueryTime(Measurement queryTime) {
+		this.queryTime = queryTime;
+	}
 
 }

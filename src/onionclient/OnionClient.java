@@ -4,6 +4,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -11,13 +12,19 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 
 
-import java.io.DataInputStream;
+
+
+
+
+
+
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.net.URISyntaxException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
@@ -43,12 +50,15 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 
 import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;
 import protocol.PEASMessage;
+import util.Config;
 import util.Encryption;
+import util.Observer;
 
 public final class OnionClient {
 	
@@ -61,6 +71,9 @@ public final class OnionClient {
     private PublicKey publicKey;
     
 	private int currentWorkingNode;
+	private boolean isSending;
+
+	private Measurement queryTime;
     
     private static final byte ModulusBytes[] = {
         (byte) 0xFF, (byte) 0xFF, (byte) 0xFF, (byte) 0xFF,
@@ -99,10 +112,13 @@ public final class OnionClient {
     private static final BigInteger Base = BigInteger.valueOf(2);
    
  
-    public OnionClient() throws InterruptedException, IOException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeySpecException, IllegalStateException {
-
+    public OnionClient() throws InterruptedException, IOException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, NoSuchAlgorithmException, NoSuchPaddingException, InvalidAlgorithmParameterException, InvalidKeySpecException, IllegalStateException, URISyntaxException {
+    	this.isSending = false;
+    	this.queryTime = new Measurement();
         // same key for all clients
-    	publicKey = readPublicKey(Paths.get("./resources/").resolve("pubKey2.der"));
+    	//publicKey = readPublicKey(Paths.get("./resources/").resolve("pubKey2.der"));
+    	String jarPath = new File(OnionClient.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
+    	publicKey = readPublicKey(jarPath + "/resources/pubKey2.der");
         
         byte[] ivBytes = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
         iv = new IvParameterSpec(ivBytes);
@@ -114,9 +130,12 @@ public final class OnionClient {
     }
 
     public void doQuery(List<Map<String, String>> addresses, String query) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
+    	System.out.println("true");
+    	this.setSending(true);
     	// Measure time 
-    	Measurement m = new Measurement();
-    	m.setBegin(System.nanoTime());
+    	if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
+    		queryTime.setBegin(System.nanoTime());
+    	}
     	
     	this.nodes = new ArrayList<OnionNode>();
         this.currentWorkingNode = 0;
@@ -158,7 +177,8 @@ public final class OnionClient {
             Bootstrap b = new Bootstrap();
             b.group(group)
              .channel(NioSocketChannel.class)
-             .handler(new QueryChannelInitializer(this, req, m));
+             .handler(new QueryChannelInitializer(this, req))
+             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS , 500);
 
         	// Start the client.
             Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
@@ -258,7 +278,7 @@ public final class OnionClient {
 
         final byte[] sharedSecret = nodes.get(node).getKeyAgreement().generateSecret();
         SecretKey symmetricKey = new SecretKeySpec(sharedSecret, 0, 16, "AES");
-        //System.out.println("sk " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
+        System.out.println("sk " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
         nodes.get(node).setAEScipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
         nodes.get(node).getAEScipher().init(Cipher.ENCRYPT_MODE, symmetricKey, iv);
         nodes.get(node).setAESdecipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
@@ -290,7 +310,8 @@ public final class OnionClient {
      * @throws NoSuchAlgorithmException
      * @throws InvalidKeySpecException
      */
-    private PublicKey readPublicKey(Path path) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+    private PublicKey readPublicKey(String path) throws IOException, InvalidKeySpecException, NoSuchAlgorithmException {
+    	/*
         File file = path.toFile();
         FileInputStream fis = new FileInputStream(file);
         byte[] keyBytes;
@@ -298,6 +319,11 @@ public final class OnionClient {
             keyBytes = new byte[(int) file.length()];
             dis.readFully(keyBytes);
         }
+        */
+    	InputStream inputStream = new FileInputStream(new File(path));
+        //InputStream inputStream = OnionClient.class.getClassLoader().getResourceAsStream(path);
+        byte[] keyBytes = IOUtils.toByteArray(inputStream);
+        
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
 
         return KeyFactory.getInstance("RSA").generatePublic(spec);
@@ -317,6 +343,22 @@ public final class OnionClient {
             bytes = nodes.get(i).getAESdecipher().doFinal(bytes);
         }
 		return Unpooled.wrappedBuffer(bytes);
+	}
+
+	public boolean isSending() {
+		return isSending;
+	}
+
+	public void setSending(boolean isSending) {
+		this.isSending = isSending;
+	}
+	
+	public Measurement getQueryTime() {
+		return queryTime;
+	}
+
+	public void setQueryTime(Measurement queryTime) {
+		this.queryTime = queryTime;
 	}
 
 

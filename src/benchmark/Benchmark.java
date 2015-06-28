@@ -1,13 +1,25 @@
 package benchmark;
 
+import java.io.IOException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
 import client.Client;
 import onionclient.OnionClient;
 import util.Config;
+import util.Observer;
 
 public class Benchmark {
 	
@@ -29,11 +41,15 @@ public class Benchmark {
     		// send queries
     		for (int i = 0; i < Integer.parseInt(Config.getInstance().getValue("QUERY_COUNT")); i++) {
 		    	for (int j = 0; j < clients.size(); j++) {
+		    		PEASDoQueries thread = new PEASDoQueries(j, clients.get(j), receiver[0], Integer.parseInt(receiver[1]), issuer[0], Integer.parseInt(issuer[1]), Config.getInstance().getValue("QUERY"));
+		    		thread.run();
+		    		/*
 			    	clients.get(j).doQuery(receiver[0], 
 			    						   Integer.parseInt(receiver[1]), 
 			    						   issuer[0], 
 			    						   Integer.parseInt(issuer[1]), 
 			    						   Config.getInstance().getValue("QUERY"));
+			    						   */
 		    	}
     		}
 	    	
@@ -61,12 +77,19 @@ public class Benchmark {
 			// send queries
     		for (int i = 0; i < Integer.parseInt(Config.getInstance().getValue("QUERY_COUNT")); i++) {
 		    	for (int j = 0; j < clients.size(); j++) {
-			    	clients.get(j).doQuery(servers, Config.getInstance().getValue("QUERY"));
+		    		
+		    		OnionDoQueries thread = new OnionDoQueries(j, clients.get(j), servers, Config.getInstance().getValue("QUERY"));
+		    		thread.run();
+			    	//clients.get(j).doQuery(servers, Config.getInstance().getValue("QUERY"));
 		    	}
     		}
 
 
 	    } 
 	}
-
+	
 }
+
+	
+
+

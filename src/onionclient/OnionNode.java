@@ -1,7 +1,6 @@
 package onionclient;
 
 import java.security.KeyPair;
-import java.security.KeyPairGenerator;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyAgreement;

@@ -15,24 +15,21 @@ import io.netty.handler.logging.LoggingHandler;
 
 public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
 	
-	private ChannelPipeline pipeline;
 	private OnionClient client;
 	private PEASMessage query;
-	private Measurement m;
 	
-	public QueryChannelInitializer(OnionClient client, PEASMessage req, Measurement m) {
+	public QueryChannelInitializer(OnionClient client, PEASMessage req) {
 		this.client = client;
 		this.query = req;
-		this.m = m;
 	}
 
 	@Override
 	protected void initChannel(SocketChannel ch) throws Exception {
-		pipeline = ch.pipeline();
+		ChannelPipeline pipeline = ch.pipeline();
 		
 		// Logging on?
 		if (Config.getInstance().getValue("LOGGING").equals("on")) {
-			pipeline.addLast(new LoggingHandler(LogLevel.INFO));
+			//pipeline.addLast(new LoggingHandler(LogLevel.INFO));
 		}
         pipeline.addLast("peasdecoder", new PEASDecoder()); // upstream 1
         pipeline.addLast("peasencoder", new PEASEncoder()); // downstream 1
@@ -40,7 +37,7 @@ public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
         if (Config.getInstance().getValue("LOGGING").equals("on")) {
         	pipeline.addLast("peasprinter", new PEASPrinter()); // upstream 2
         }
-        pipeline.addLast("queryhandler", new QueryHandler(client, query, m)); // upstream 3
+        pipeline.addLast("queryhandler", new QueryHandler(client, query)); // upstream 3
 	}
 
 }

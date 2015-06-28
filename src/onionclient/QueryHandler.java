@@ -1,6 +1,10 @@
 package onionclient;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -13,7 +17,6 @@ import org.apache.commons.codec.binary.Base64;
 
 import benchmark.Measurement;
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -21,7 +24,8 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import protocol.PEASBody;
 import protocol.PEASHeader;
 import protocol.PEASMessage;
-import util.Encryption;
+import util.Config;
+import util.Observer;
 
 
 public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
@@ -29,12 +33,10 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	private OnionClient client;
 	private PEASMessage query;
 	private boolean querySent = false;
-	private Measurement m;
 
-	public QueryHandler(OnionClient client, PEASMessage req, Measurement m) {
+	public QueryHandler(OnionClient client, PEASMessage req) {
 		this.client = client;
 		this.query = req;
-		this.m = m;
 	}
 	
 	@Override
@@ -150,12 +152,29 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 				}
 			} else {
 				ctx.close();
-				m.setEnd(System.nanoTime());
-				System.out.println("query lasted: " + m.getTimeInMs());
+				if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
+					client.getQueryTime().setEnd(System.nanoTime());
+					String jarPath = new File(Observer.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
+					try {
+						PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(jarPath + "/" + "queries.log", true)));
+						writer.println(client.getQueryTime().getTimeInMs());
+						writer.close();
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
 			}
 		} 
 			
 	}
+	
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+    	System.out.println("false");
+    	this.client.setSending(false);
+    	super.channelInactive(ctx);
+    }
 
 
 }
