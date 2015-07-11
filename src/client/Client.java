@@ -26,6 +26,8 @@ import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 
+import com.squareup.crypto.rsa.NativeRSAEngine;
+
 import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;

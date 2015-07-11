@@ -43,9 +43,9 @@ public class OnionDoQueries extends Thread {
     	long startTime = System.nanoTime();
         int count = 0;
     	while (count < 10000000) {
-    		System.out.println("im running");
     		try {
     			if (!client.isSending()) {
+    				count++;
     				client.doQuery(nodes, query);
     				
     				// Sleep between requests
@@ -77,7 +77,7 @@ public class OnionDoQueries extends Thread {
 				e.printStackTrace();
 				client.setSending(false);
 			} finally {
-                count++;
+
             }
     	}
     }
