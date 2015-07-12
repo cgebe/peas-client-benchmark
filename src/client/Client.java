@@ -134,7 +134,6 @@ public final class Client {
                     	if (Config.getInstance().getValue("LOGGING").equals("on")) {
                     		System.out.println("sending failed");
                     	}
-                        future.channel().close();
                     }
                 }
             });

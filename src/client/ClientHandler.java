@@ -55,7 +55,8 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASMessage> {
 		} else {
 			
 		}
-		
+		System.out.println("false");
+    	this.client.setSending(false);
 	}
 
     @Override
@@ -67,8 +68,6 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASMessage> {
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    	System.out.println("false");
-    	this.client.setSending(false);
     	super.channelInactive(ctx);
     }
    

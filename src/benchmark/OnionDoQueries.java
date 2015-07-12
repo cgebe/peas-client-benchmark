@@ -41,11 +41,27 @@ public class OnionDoQueries extends Thread {
 
     public void run() {
     	long startTime = System.nanoTime();
+    	long threadTimer = System.nanoTime();
         int count = 0;
+        int queriesPerSecond = 0;
     	while (count < 10000000) {
+    		if ((System.nanoTime() - threadTimer) / 1e6 > 1000) {
+    			try {
+	    			String jarPath = new File(PEASDoQueries.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
+					PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(jarPath + "/" + "queriesPerSecond" + id + ".log", true)));
+					writer.println(queriesPerSecond);
+					writer.close();
+	    		} catch (IOException | URISyntaxException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} 
+    			queriesPerSecond = 0;
+    			threadTimer = System.nanoTime();
+    		}
     		try {
     			if (!client.isSending()) {
     				count++;
+    				queriesPerSecond++;
     				client.doQuery(nodes, query);
     				
     				// Sleep between requests

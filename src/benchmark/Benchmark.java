@@ -31,6 +31,8 @@ public class Benchmark {
 	    	// create clients
 	    	List<Client> clients = new ArrayList<Client>();
 	    	for (int i = 0; i < Integer.parseInt(Config.getInstance().getValue("CLIENT_COUNT")); i++) {
+	    		System.out.println("client added");
+	    		System.out.println(Integer.parseInt(Config.getInstance().getValue("CLIENT_COUNT")));
 	    		clients.add(new Client());
 	    	}
 	    	
@@ -41,8 +43,9 @@ public class Benchmark {
     		// send queries
     		for (int i = 0; i < Integer.parseInt(Config.getInstance().getValue("QUERY_COUNT")); i++) {
 		    	for (int j = 0; j < clients.size(); j++) {
+		    		System.out.println("client " + j + " started");
 		    		PEASDoQueries thread = new PEASDoQueries(j, clients.get(j), receiver[0], Integer.parseInt(receiver[1]), issuer[0], Integer.parseInt(issuer[1]), Config.getInstance().getValue("QUERY"));
-		    		thread.run();
+		    		thread.start();
 		    		/*
 			    	clients.get(j).doQuery(receiver[0], 
 			    						   Integer.parseInt(receiver[1]), 
@@ -79,7 +82,7 @@ public class Benchmark {
 		    	for (int j = 0; j < clients.size(); j++) {
 		    		
 		    		OnionDoQueries thread = new OnionDoQueries(j, clients.get(j), servers, Config.getInstance().getValue("QUERY"));
-		    		thread.run();
+		    		thread.start();
 			    	//clients.get(j).doQuery(servers, Config.getInstance().getValue("QUERY"));
 		    	}
     		}

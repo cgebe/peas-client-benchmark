@@ -63,7 +63,6 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	               	   System.out.println("handshake successful");
 	               } else {
 	                   System.out.println("handshake failed");
-	                   future.channel().close();
 	               }
 	           }
 	        });
@@ -120,7 +119,6 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 			               	   System.out.println("handshake successful");
 			               } else {
 			                   System.out.println("handshake failed");
-			                   future.channel().close();
 			               }
 			           }
 			        });
@@ -143,7 +141,6 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 					       	   System.out.println("query successful");
 					       } else {
 					           System.out.println("query failed");
-					           future.channel().close();
 					       }
 					   }
 					});
