@@ -76,6 +76,7 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	@Override
 	public void exceptionCaught(ChannelHandlerContext arg0, Throwable arg1) throws Exception {
 		arg1.printStackTrace();
+		this.client.setSending(false);
 	}
 
 	@Override
@@ -168,9 +169,10 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-    	System.out.println("false");
-    	this.client.setSending(false);
     	super.channelInactive(ctx);
+    	if (client.isSending()) {
+    		this.client.setSending(false);
+    	}
     }
 
 

@@ -81,8 +81,7 @@ public final class Client {
     }
     
     public void doQuery(String receiver, int receiverPort, String issuer, int issuerPort, String query) throws InterruptedException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidCipherTextException {
-    	System.out.println("true");
-    	this.setSending(true);
+    	System.out.println("send");
 
     	if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
     		queryTime.setBegin(System.nanoTime());
@@ -95,8 +94,7 @@ public final class Client {
             b.group(group)
              .channel(NioSocketChannel.class)
              //.option(ChannelOption.TCP_NODELAY, true)
-             .handler(new ClientChannelInitializer(this))
-             .option(ChannelOption.CONNECT_TIMEOUT_MILLIS , 500);
+             .handler(new ClientChannelInitializer(this));
 
     		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
     				 + "Host: www.google.com";
@@ -119,7 +117,21 @@ public final class Client {
     		body.getContent().writeBytes(encrypted);
     		
             // Start the client.
-            Channel ch = b.connect(receiver, receiverPort).sync().channel();
+    		ChannelFuture f1 = b.connect(receiver, receiverPort);
+    		
+    		f1.addListener(new ChannelFutureListener() {
+                 @Override
+                 public void operationComplete(ChannelFuture future) {
+                     if (future.isSuccess()) {
+                     	System.out.println("connection successful");
+                     } else {
+                     	System.out.println("connection failed");
+                     	future.cause().printStackTrace();
+                     }
+                 }
+             });
+    		
+            Channel ch = f1.sync().channel();
             
     		ChannelFuture f = ch.writeAndFlush(new PEASMessage(header, body));
     		
@@ -127,19 +139,17 @@ public final class Client {
                 @Override
                 public void operationComplete(ChannelFuture future) {
                     if (future.isSuccess()) {
-                    	if (Config.getInstance().getValue("LOGGING").equals("on")) {
-                    		System.out.println("sending successful");
-                    	}
+                    	System.out.println("sending successful");
                     } else {
-                    	if (Config.getInstance().getValue("LOGGING").equals("on")) {
-                    		System.out.println("sending failed");
-                    	}
+                    	System.out.println("sending failed");
                     }
                 }
             });
     		
     		ch.closeFuture().sync();
-
+    		
+    		ch.close().syncUninterruptibly();
+    		System.out.println("closed");
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();

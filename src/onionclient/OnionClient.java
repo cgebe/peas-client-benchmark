@@ -130,7 +130,7 @@ public final class OnionClient {
     }
 
     public void doQuery(List<Map<String, String>> addresses, String query) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
-    	System.out.println("true");
+    	System.out.println("send");
     	this.setSending(true);
     	// Measure time 
     	if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
@@ -184,7 +184,10 @@ public final class OnionClient {
             Channel ch = b.connect(nodes.get(0).getHostname(), nodes.get(0).getPort()).sync().channel();
 
     		ch.closeFuture().sync();
-            
+    		
+    		ch.close().syncUninterruptibly();
+    		
+    		System.out.println("closed");
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();

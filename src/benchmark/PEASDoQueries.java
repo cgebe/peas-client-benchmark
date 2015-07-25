@@ -60,35 +60,30 @@ public class PEASDoQueries extends Thread {
     			threadTimer = System.nanoTime();
     		}
     		try {
-    			if (!client.isSending()) {
-    				count++;
-    				queriesPerSecond++;
-    				client.doQuery(receiverAddress, receiverPort, issuerAddress, issuerPort, query);
-    				
-    				// Sleep between requests
-    				long slstarttime = System.nanoTime();
-    				if (Integer.parseInt(Config.getInstance().getValue("SLEEP")) > 0) {
-    					Thread.sleep(Integer.parseInt(Config.getInstance().getValue("SLEEP")));
-    					
-    					long wtime = System.nanoTime() - slstarttime;
-    					startTime += wtime;
-    				}
-    				
-    				
-    				// Measure Throughput
-    				if (Config.getInstance().getValue("MEASURE_THROUGHPUT").equals("on")) {
-    					if (count % 20 == 1) {
-    						long endTime = System.nanoTime();
-    	                    executor.execute(new ThroughtputWriter(count, startTime, endTime));
-    					}
-    				}
-    			}
-    		} catch (InvalidKeyException | NoSuchAlgorithmException
-				| InvalidAlgorithmParameterException
-				| InvalidCipherTextException | InterruptedException e) {
+				count++;
+				queriesPerSecond++;
+				client.doQuery(receiverAddress, receiverPort, issuerAddress, issuerPort, query);
+				
+				// Sleep between requests
+				long slstarttime = System.nanoTime();
+				if (Integer.parseInt(Config.getInstance().getValue("SLEEP")) > 0) {
+					Thread.sleep(Integer.parseInt(Config.getInstance().getValue("SLEEP")));
+					
+					long wtime = System.nanoTime() - slstarttime;
+					startTime += wtime;
+				}
+				
+				
+				// Measure Throughput
+				if (Config.getInstance().getValue("MEASURE_THROUGHPUT").equals("on")) {
+					if (count % 20 == 1) {
+						long endTime = System.nanoTime();
+	                    executor.execute(new ThroughtputWriter(count, startTime, endTime));
+					}
+				}
+    		} catch (Exception e) {
     			// TODO Auto-generated catch block
     			e.printStackTrace();
-    			client.setSending(false);
     		} finally {
 
             }

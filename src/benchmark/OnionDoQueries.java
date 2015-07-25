@@ -83,12 +83,7 @@ public class OnionDoQueries extends Thread {
     				}
 
     			}
-			} catch (InvalidKeyException | NoSuchAlgorithmException
-					| InvalidKeySpecException | IllegalStateException
-					| InvalidAlgorithmParameterException
-					| IllegalBlockSizeException | BadPaddingException
-					| NoSuchPaddingException | IOException
-					| InterruptedException e) {
+			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 				client.setSending(false);
@@ -120,7 +115,7 @@ public class OnionDoQueries extends Thread {
             try {
 				String jarPath = new File(Observer.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
 			
-				PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(jarPath + "/" + "throughput.log", true)));
+				PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(jarPath + "/" + "throughput" + id + ".log", true)));
 				writer.println(line);
 				writer.close();
 			} catch (IOException | URISyntaxException e) {
