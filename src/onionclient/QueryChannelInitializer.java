@@ -3,8 +3,9 @@ package onionclient;
 
 import benchmark.Measurement;
 import protocol.PEASMessage;
-import receiver.handler.upstream.PEASPrinter;
 import util.Config;
+import util.PEASPrinterIn;
+import util.PEASPrinterOut;
 import codec.PEASDecoder;
 import codec.PEASEncoder;
 import io.netty.channel.ChannelInitializer;
@@ -35,7 +36,8 @@ public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
         pipeline.addLast("peasencoder", new PEASEncoder()); // downstream 1
         
         if (Config.getInstance().getValue("LOGGING").equals("on")) {
-        	pipeline.addLast("peasprinter", new PEASPrinter()); // upstream 2
+        	pipeline.addLast("peasprinterin", new PEASPrinterIn()); // upstream 2
+        	pipeline.addLast("peasprinterout", new PEASPrinterOut()); // downstream 1
         }
         pipeline.addLast("queryhandler", new QueryHandler(client, query)); // upstream 3
 	}

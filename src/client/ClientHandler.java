@@ -63,16 +63,11 @@ public class ClientHandler extends SimpleChannelInboundHandler<PEASMessage> {
         // Close the connection when an exception is raised.
         cause.printStackTrace();
         ctx.close();
-        this.client.setSending(false);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
     	super.channelInactive(ctx);
-    	System.out.println("inactive");
-    	if (client.isSending()) {
-    		this.client.setSending(false);
-    	}
     }
 
     

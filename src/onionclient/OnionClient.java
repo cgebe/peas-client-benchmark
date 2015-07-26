@@ -19,6 +19,8 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 
 
 
+
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -34,8 +36,10 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -51,7 +55,9 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
+import org.bouncycastle.crypto.InvalidCipherTextException;
 
+import client.Client;
 import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;
@@ -128,9 +134,45 @@ public final class OnionClient {
         KeyPairGen = KeyPairGenerator.getInstance("DH");
         KeyPairGen.initialize(dhParamSpec);
     }
+    
+    public static void main(String[] args) throws Exception {
+    	OnionClient c = new OnionClient();
+    	
+		List<Map<String, String>> servers = new ArrayList<Map<String, String>>();
+		
+
+		Map<String, String> node = new HashMap<String, String>();
+		node.put("hostname", "localhost");
+		node.put("port", "12345");
+		
+		Map<String, String> exitNode = new HashMap<String, String>();
+		exitNode.put("hostname", "localhost");
+		exitNode.put("port", "12346");
+		
+		servers.add(node);
+		servers.add(exitNode);
+		
+    	Scanner sc = new Scanner(System.in);
+
+		while (true) {
+			try {
+				System.out.print("Enter your query: ");
+			
+				String query = sc.nextLine();
+				
+				System.out.println();
+				
+				c.doQuery(servers, query);
+				
+			} catch (InvalidKeyException | NoSuchAlgorithmException
+					| InvalidAlgorithmParameterException e) {
+				sc.close();
+				e.printStackTrace();
+			}
+		}
+    }
 
     public void doQuery(List<Map<String, String>> addresses, String query) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException, IllegalStateException, InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException, NoSuchPaddingException, IOException, InterruptedException {
-    	System.out.println("send");
     	this.setSending(true);
     	// Measure time 
     	if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
@@ -187,7 +229,6 @@ public final class OnionClient {
     		
     		ch.close().syncUninterruptibly();
     		
-    		System.out.println("closed");
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();
@@ -281,7 +322,7 @@ public final class OnionClient {
 
         final byte[] sharedSecret = nodes.get(node).getKeyAgreement().generateSecret();
         SecretKey symmetricKey = new SecretKeySpec(sharedSecret, 0, 16, "AES");
-        System.out.println("sk " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
+        System.out.println("Key For Node " + node + ": " + Encryption.bytesToHex(symmetricKey.getEncoded()));
         nodes.get(node).setAEScipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));
         nodes.get(node).getAEScipher().init(Cipher.ENCRYPT_MODE, symmetricKey, iv);
         nodes.get(node).setAESdecipher(Cipher.getInstance("AES/CBC/PKCS5Padding"));

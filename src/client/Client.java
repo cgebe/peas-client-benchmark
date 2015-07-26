@@ -13,6 +13,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.Security;
+import java.util.Scanner;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
@@ -44,6 +45,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.ResourceLeakDetector;
+import issuer.server.IssuerServer;
 
 
 /**
@@ -78,11 +80,33 @@ public final class Client {
 		setRSAEncryptionKey(publicKey);
 		
 		ResourceLeakDetector.setLevel(ResourceLeakDetector.Level.ADVANCED);
+		
+    }
+    
+    public static void main(String[] args) throws Exception {
+    	Client c = new Client();
+    	
+    	Scanner sc = new Scanner(System.in);
+
+		while (true) {
+			try {
+				System.out.print("Enter your query: ");
+			
+				String query = sc.nextLine();
+				
+				System.out.println();
+				c.doQuery("localhost", 11777, "localhost", 11779, query);
+				
+			} catch (InvalidKeyException | NoSuchAlgorithmException
+					| InvalidAlgorithmParameterException
+					| InvalidCipherTextException e) {
+				sc.close();
+				e.printStackTrace();
+			}
+		}
     }
     
     public void doQuery(String receiver, int receiverPort, String issuer, int issuerPort, String query) throws InterruptedException, InvalidKeyException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidCipherTextException {
-    	System.out.println("send");
-
     	if (Config.getInstance().getValue("MEASURE_QUERY_TIME").equals("on")) {
     		queryTime.setBegin(System.nanoTime());
     	}
@@ -98,6 +122,9 @@ public final class Client {
 
     		String c = "GET /search?q=" + query + " HTTP/1.1" + System.lineSeparator()
     				 + "Host: www.google.com";
+    		
+    		System.out.println(c);
+    		System.out.println();
     		
     		PEASHeader header = new PEASHeader();
     		
@@ -123,9 +150,9 @@ public final class Client {
                  @Override
                  public void operationComplete(ChannelFuture future) {
                      if (future.isSuccess()) {
-                     	System.out.println("connection successful");
+                     	System.out.println("Connection To Receiver/Node Established");
                      } else {
-                     	System.out.println("connection failed");
+                     	System.out.println("Connection To Receiver/Node Failed");
                      	future.cause().printStackTrace();
                      }
                  }
@@ -139,9 +166,9 @@ public final class Client {
                 @Override
                 public void operationComplete(ChannelFuture future) {
                     if (future.isSuccess()) {
-                    	System.out.println("sending successful");
+                    	//System.out.println("sending successful");
                     } else {
-                    	System.out.println("sending failed");
+                    	//System.out.println("sending failed");
                     }
                 }
             });
@@ -149,7 +176,7 @@ public final class Client {
     		ch.closeFuture().sync();
     		
     		ch.close().syncUninterruptibly();
-    		System.out.println("closed");
+    		
         } finally {
             // Shut down the event loop to terminate all threads.
             group.shutdownGracefully();

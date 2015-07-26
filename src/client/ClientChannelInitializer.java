@@ -2,6 +2,8 @@ package client;
 
 import benchmark.Measurement;
 import util.Config;
+import util.PEASPrinterIn;
+import util.PEASPrinterOut;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
@@ -31,7 +33,8 @@ public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> 
         pipeline.addLast("peasencoder", new PEASEncoder());
         
         if (Config.getInstance().getValue("LOGGING").equals("on")) {
-        	pipeline.addLast("peasprinter", new PEASPrinter());
+        	pipeline.addLast("peasprinterin", new PEASPrinterIn()); // upstream 2
+        	pipeline.addLast("peasprinterout", new PEASPrinterOut()); // downstream 1
         }
         pipeline.addLast("processor", new ClientHandler(client));
 	}

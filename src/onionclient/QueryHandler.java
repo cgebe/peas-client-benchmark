@@ -60,9 +60,9 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 	           @Override
 	           public void operationComplete(ChannelFuture future) {
 	               if (future.isSuccess()) {
-	               	   System.out.println("handshake successful");
+	               	   System.out.println("Handshake successful");
 	               } else {
-	                   System.out.println("handshake failed");
+	                   System.out.println("Handshake failed");
 	               }
 	           }
 	        });
@@ -117,9 +117,9 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 			           @Override
 			           public void operationComplete(ChannelFuture future) {
 			               if (future.isSuccess()) {
-			               	   System.out.println("handshake successful");
+			               	   //System.out.println("Handshake successful");
 			               } else {
-			                   System.out.println("handshake failed");
+			                   //System.out.println("Handshake failed");
 			               }
 			           }
 			        });
@@ -139,9 +139,9 @@ public class QueryHandler extends SimpleChannelInboundHandler<PEASMessage> {
 					   public void operationComplete(ChannelFuture future) {
 					       if (future.isSuccess()) {
 					    	   querySent = true;
-					       	   System.out.println("query successful");
+					       	   //System.out.println("query successful");
 					       } else {
-					           System.out.println("query failed");
+					           //System.out.println("query failed");
 					       }
 					   }
 					});
