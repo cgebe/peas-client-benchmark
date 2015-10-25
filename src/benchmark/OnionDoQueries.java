@@ -2,27 +2,18 @@ package benchmark;
 
 import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 
 import onionclient.OnionClient;
 import util.Config;
-import util.Observer;
 
 public class OnionDoQueries extends Thread {
 	
@@ -98,7 +89,6 @@ public class OnionDoQueries extends Thread {
         private int count;
         private long startTime;
         private long endTime;
-        private PrintWriter log;
 
         public ThroughtputWriter(int count, long startTime, long endTime) {
             this.count = count;
@@ -113,7 +103,7 @@ public class OnionDoQueries extends Thread {
             String line = (int) time + "\t" + count + "\t" + String.format("%.3f", count/time) + "\t" + String.format("%.3f", latency);
             
             try {
-				String jarPath = new File(Observer.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
+				String jarPath = new File(Benchmark.class.getProtectionDomain().getCodeSource().getLocation().toURI().getPath()).getParentFile().getPath();
 			
 				PrintWriter writer = new PrintWriter(new BufferedWriter(new FileWriter(jarPath + "/" + "throughput" + id + ".log", true)));
 				writer.println(line);

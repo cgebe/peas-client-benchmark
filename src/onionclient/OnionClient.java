@@ -10,17 +10,6 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 
 
-
-
-
-
-
-
-
-
-
-
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -55,16 +44,13 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.IOUtils;
-import org.bouncycastle.crypto.InvalidCipherTextException;
 
-import client.Client;
 import benchmark.Measurement;
 import protocol.PEASBody;
 import protocol.PEASHeader;
 import protocol.PEASMessage;
 import util.Config;
 import util.Encryption;
-import util.Observer;
 
 public final class OnionClient {
 	

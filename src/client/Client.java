@@ -27,7 +27,6 @@ import org.bouncycastle.crypto.engines.RSAEngine;
 import org.bouncycastle.crypto.params.AsymmetricKeyParameter;
 import org.bouncycastle.crypto.util.PublicKeyFactory;
 
-import com.squareup.crypto.rsa.NativeRSAEngine;
 
 import benchmark.Measurement;
 import protocol.PEASBody;
@@ -35,17 +34,14 @@ import protocol.PEASHeader;
 import protocol.PEASMessage;
 import util.Config;
 import util.Encryption;
-import util.Observer;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.util.ResourceLeakDetector;
-import issuer.server.IssuerServer;
 
 
 /**
@@ -166,9 +162,9 @@ public final class Client {
                 @Override
                 public void operationComplete(ChannelFuture future) {
                     if (future.isSuccess()) {
-                    	//System.out.println("sending successful");
+                    	System.out.println("sending successful");
                     } else {
-                    	//System.out.println("sending failed");
+                    	System.out.println("sending failed");
                     }
                 }
             });

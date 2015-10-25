@@ -27,7 +27,7 @@ public class ClientChannelInitializer extends ChannelInitializer<SocketChannel> 
 		
 		// Logging on?
 		if (Config.getInstance().getValue("LOGGING").equals("on")) {
-			//pipeline.addLast(new LoggingHandler(LogLevel.INFO));
+			pipeline.addLast(new LoggingHandler(LogLevel.INFO));
 		}
         pipeline.addLast("peasdecoder", new PEASDecoder());
         pipeline.addLast("peasencoder", new PEASEncoder());

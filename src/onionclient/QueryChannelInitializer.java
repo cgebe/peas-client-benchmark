@@ -1,7 +1,6 @@
 package onionclient;
 
 
-import benchmark.Measurement;
 import protocol.PEASMessage;
 import util.Config;
 import util.PEASPrinterIn;
@@ -11,8 +10,6 @@ import codec.PEASEncoder;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 
 public class QueryChannelInitializer extends ChannelInitializer<SocketChannel> {
 	
